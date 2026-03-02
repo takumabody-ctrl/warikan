@@ -1,125 +1,210 @@
-// --- 改善された本体ロジック ---
-const STORAGE_KEY = 'smart_delivery_v10';
-let isSimMode = false;
-let simMinutes = 0;
-let drivers = [];
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>未配リスク計算機 | DP Professional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0a0c10; color: #e6edf3; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 16px; padding: 16px; transition: border 0.3s, box-shadow 0.3s; position: relative; overflow: hidden; }
+        /* アラート状態のスタイル */
+        .card.alert-active { border: 2px solid #f85149; background: #211515; box-shadow: 0 0 20px rgba(248, 81, 73, 0.15); }
+        .input-box { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 10px; text-align: center; color: white; width: 100%; font-weight: bold; font-size: 16px; outline: none; transition: border-color 0.2s; }
+        .input-box:focus { border-color: #58a6ff; box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.1); }
+        .label-text { font-size: 10px; color: #8b949e; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; display: block; }
+        input[type=range] { width: 100%; accent-color: #58a6ff; cursor: pointer; height: 30px; }
+        #auth-overlay { position: fixed; inset: 0; background: #0a0c10; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
+        .risk-value { transition: color 0.3s ease; }
+    </style>
+</head>
+<body class="p-4 pb-20">
 
-function initApp() {
-    // データ復元
-    drivers = JSON.parse(localStorage.getItem(STORAGE_KEY)) || Array.from({ length: 5 }, (_, i) => ({
-        id: i, // 固有IDを追加
-        name: `Driver ${i + 1}`, total: 100, done: 0, absent: 0, start: "08:00", end: "20:00"
-    }));
-    
-    const initNow = new Date();
-    document.getElementById('time-slider').value = initNow.getHours() * 60 + initNow.getMinutes();
-    
-    // 初回のみフルレンダリング
-    fullRender();
-    
-    // 定期更新（入力中を考慮し、計算値のみを書き換える方式に変更）
-    setInterval(() => { 
-        if (!isSimMode) updateCalculations(); 
-    }, 10000);
-}
+    <div id="auth-overlay">
+        <h2 class="text-xl font-bold mb-2 text-blue-400">LICENSE AUTHENTICATION</h2>
+        <p class="text-[10px] text-gray-500 mb-8 uppercase tracking-widest">Amazon DP Fleet Management Tool</p>
+        <input type="password" id="pass-input" class="input-box max-w-xs mb-4" placeholder="Enter Password">
+        <button onclick="validateLicense()" class="bg-blue-600 hover:bg-blue-500 text-white px-10 py-3 rounded-full font-bold active:scale-95 transition-all">認証する</button>
+    </div>
 
-// DOMを破棄せず、数値と色だけを更新する「スマート・アップデート」関数
-function updateCalculations() {
-    const activeTime = getActiveTime();
-    document.getElementById('display-time').innerText = activeTime.getHours().toString().padStart(2, '0') + ':' + activeTime.getMinutes().toString().padStart(2, '0');
-    
-    drivers.forEach((d, i) => {
-        const stats = calculate(d, activeTime);
-        const card = document.getElementById(`card-${i}`);
-        const riskEl = document.getElementById(`risk-${i}`);
-        const paceEl = document.getElementById(`pace-${i}`);
-        const predEl = document.getElementById(`pred-${i}`);
+    <div id="main-content" style="display:none;">
+        <header class="max-w-4xl mx-auto mb-6">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h1 class="text-xl font-black tracking-tighter text-blue-400 italic">FLEET MONITOR</h1>
+                    <div id="mode-badge" class="text-[9px] font-bold px-2 py-0.5 rounded bg-green-900 text-green-300 inline-block uppercase">Real-time</div>
+                </div>
+                <div class="text-right">
+                    <div id="display-time" class="text-3xl font-mono font-black text-blue-400 leading-none">00:00</div>
+                    <button onclick="resetToNow()" class="mt-2 text-[10px] font-bold bg-blue-600 text-white px-3 py-1 rounded-full active:scale-95 transition-all">↺ 現在時刻に同期</button>
+                </div>
+            </div>
+            <div class="bg-[#161b22] p-4 rounded-xl border border-gray-800 shadow-xl">
+                <div class="flex justify-between text-[10px] font-bold text-gray-500 mb-1">
+                    <span>06:00</span>
+                    <span class="text-blue-500">TIME SIMULATION CONTROL</span>
+                    <span>22:00</span>
+                </div>
+                <input type="range" id="time-slider" min="360" max="1320" step="1">
+            </div>
+        </header>
 
-        // リスク値と色の更新
-        riskEl.innerText = `${stats.risk}%`;
-        riskEl.className = `text-2xl font-black ${stats.risk >= 100 ? 'text-red-500' : 'text-green-400'}`;
-        
-        // アラート枠の制御
-        if (stats.risk >= 100 && stats.predict > 0) {
-            card.classList.add('alert');
-        } else {
-            card.classList.remove('alert');
+        <div id="grid" class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
+            </div>
+    </div>
+
+    <script>
+        const LICENSE_MASTER = { "amz-dp-trial": "2026-04-02" };
+        const STORAGE_KEY = 'smart_delivery_v10';
+        let isSimMode = false;
+        let simMinutes = 0;
+        let drivers = [];
+
+        // 認証処理
+        function validateLicense() {
+            const input = document.getElementById('pass-input').value;
+            const expiry = LICENSE_MASTER[input];
+            if (expiry && new Date() <= new Date(expiry)) {
+                localStorage.setItem("active_license_key_v10", input);
+                startApp();
+            } else {
+                alert(expiry ? "期限切れです。" : "無効なキーです。");
+            }
         }
 
-        // ペースと予測の更新
-        paceEl.innerText = stats.pace;
-        predEl.innerText = stats.predict > 0 ? `${stats.predict}個` : '完配見込';
-        predEl.className = `text-xl font-bold ${stats.predict > 0 ? 'text-red-400' : 'text-green-400'}`;
-    });
-}
+        function startApp() {
+            document.getElementById('auth-overlay').style.display = 'none';
+            document.getElementById('main-content').style.display = 'block';
+            initApp();
+        }
 
-function fullRender() {
-    const container = document.getElementById('grid');
-    container.innerHTML = ''; // 初回のみクリア
-    
-    drivers.forEach((d, i) => {
-        const stats = calculate(d, getActiveTime());
-        const div = document.createElement('div');
-        div.id = `card-${i}`;
-        div.className = `card ${stats.risk >= 100 ? 'alert' : ''}`;
-        div.innerHTML = `
-            <div class="flex justify-between items-center mb-4">
-                <input class="bg-transparent font-bold text-white outline-none border-b border-gray-700 w-1/2" 
-                       value="${d.name}" oninput="updateData(${i}, 'name', this.value)">
-                <div class="text-right">
-                    <span class="label-text">Risk Score</span>
-                    <div id="risk-${i}" class="text-2xl font-black ${stats.risk >= 100 ? 'text-red-500' : 'text-green-400'}">${stats.risk}%</div>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-2 mb-4">
-                <div class="bg-black/40 p-3 rounded-lg border border-white/5">
-                    <div class="label-text">Pace</div>
-                    <div class="text-xl font-bold text-blue-300"><span id="pace-${i}">${stats.pace}</span><span class="text-[10px] ml-1">/h</span></div>
-                </div>
-                <div class="bg-black/40 p-3 rounded-lg border border-white/5">
-                    <div class="label-text">未配予測</div>
-                    <div id="pred-${i}" class="text-xl font-bold ${stats.predict > 0 ? 'text-red-400' : 'text-green-400'}">
-                        ${stats.predict > 0 ? stats.predict + '個' : '完配見込'}
-                    </div>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <div class="label-text text-blue-400">完了数</div>
-                    <input type="number" class="input-box" value="${d.done}" 
-                           oninput="updateData(${i}, 'done', Number(this.value))">
-                </div>
-                <div>
-                    <div class="label-text text-orange-400">不在数</div>
-                    <input type="number" class="input-box" value="${d.absent}" 
-                           oninput="updateData(${i}, 'absent', Number(this.value))">
-                </div>
-                <div class="col-span-2 grid grid-cols-3 gap-2 pt-2 border-t border-gray-800 mt-2">
-                    <div>
-                        <div class="label-text">総数</div>
-                        <input type="number" class="input-box text-sm p-1" value="${d.total}" 
-                               oninput="updateData(${i}, 'total', Number(this.value))">
-                    </div>
-                    <div>
-                        <div class="label-text">開始</div>
-                        <input type="text" class="input-box text-sm p-1" value="${d.start}" 
-                               oninput="updateData(${i}, 'start', this.value)">
-                    </div>
-                    <div>
-                        <div class="label-text">終了</div>
-                        <input type="text" class="input-box text-sm p-1" value="${d.end}" 
-                               oninput="updateData(${i}, 'end', this.value)">
-                    </div>
-                </div>
-            </div>
-        `;
-        container.appendChild(div);
-    });
-}
+        function initApp() {
+            drivers = JSON.parse(localStorage.getItem(STORAGE_KEY)) || Array.from({ length: 5 }, (_, i) => ({
+                id: i, name: `Driver ${i + 1}`, total: 100, done: 0, absent: 0, start: "08:00", end: "20:00"
+            }));
+            const initNow = new Date();
+            document.getElementById('time-slider').value = initNow.getHours() * 60 + initNow.getMinutes();
+            
+            // 重要：ここで一度だけDOM構造を作る（innerHTMLを使わない更新への準備）
+            setupInitialDOM();
+            updateCalculations();
+            
+            setInterval(() => { if (!isSimMode) updateCalculations(); }, 30000);
+        }
 
-// データの更新と部分計算
-function updateData(index, field, value) {
-    drivers[index][field] = value;
-    save();
-    updateCalculations(); // フォーカスを奪わずに計算結果のみ更新
-}
+        // DOMの骨組みだけを一度だけ作成
+        function setupInitialDOM() {
+            const container = document.getElementById('grid');
+            container.innerHTML = '';
+            drivers.forEach((d, i) => {
+                const div = document.createElement('div');
+                div.id = `card-${i}`;
+                div.className = `card`;
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-4">
+                        <input class="bg-transparent font-bold text-white outline-none border-b border-gray-700 w-1/2 focus:border-blue-500" 
+                               value="${d.name}" oninput="updateField(${i}, 'name', this.value)">
+                        <div class="text-right">
+                            <span class="label-text">Risk Score</span>
+                            <div id="risk-${i}" class="text-2xl font-black risk-value">0%</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mb-4">
+                        <div class="bg-black/40 p-3 rounded-lg border border-white/5">
+                            <span class="label-text">Pace</span>
+                            <div class="text-xl font-bold text-blue-300"><span id="pace-${i}">0.0</span><span class="text-[10px] ml-1">/h</span></div>
+                        </div>
+                        <div class="bg-black/40 p-3 rounded-lg border border-white/5">
+                            <span class="label-text">未配予測</span>
+                            <div id="pred-${i}" class="text-xl font-bold">完配見込</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><span class="label-text text-blue-400">完了数</span><input type="number" class="input-box" value="${d.done}" oninput="updateField(${i}, 'done', Number(this.value))"></div>
+                        <div><span class="label-text text-orange-400">不在数</span><input type="number" class="input-box" value="${d.absent}" oninput="updateField(${i}, 'absent', Number(this.value))"></div>
+                        <div class="col-span-2 grid grid-cols-3 gap-2 pt-2 border-t border-gray-800 mt-2">
+                            <div><span class="label-text">総数</span><input type="number" class="input-box text-sm p-1" value="${d.total}" oninput="updateField(${i}, 'total', Number(this.value))"></div>
+                            <div><span class="label-text">開始</span><input type="text" class="input-box text-sm p-1" value="${d.start}" oninput="updateField(${i}, 'start', this.value)"></div>
+                            <div><span class="label-text">終了</span><input type="text" class="input-box text-sm p-1" value="${d.end}" oninput="updateField(${i}, 'end', this.value)"></div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function calculate(d, activeTime) {
+            const parse = (t) => {
+                const [h, m] = t.split(':').map(Number);
+                const dt = new Date(activeTime); dt.setHours(h, m, 0, 0); return dt;
+            };
+            const start = parse(d.start);
+            const end = parse(d.end);
+            const elapsed = Math.max(0.1, (activeTime - start) / (1000 * 60 * 60)); 
+            const remaining = Math.max(0.1, (end - activeTime) / (1000 * 60 * 60)); 
+            const currentPace = d.done / elapsed; 
+            const leftItems = Math.max(0, d.total - d.done - d.absent); 
+            const reqPace = leftItems / remaining; 
+            const risk = d.done > 0 ? Math.min(200, Math.floor((reqPace / Math.max(0.1, currentPace)) * 100)) : 0;
+            const predict = Math.max(0, Math.ceil(leftItems - (currentPace * remaining)));
+            return { risk, predict, pace: currentPace.toFixed(1) };
+        }
+
+        // 重要：DOMを壊さず中身だけを書き換える（これでフォーカスが外れない）
+        function updateCalculations() {
+            const activeTime = isSimMode ? 
+                new Date(new Date().setHours(Math.floor(simMinutes / 60), simMinutes % 60, 0, 0)) : 
+                new Date();
+
+            document.getElementById('display-time').innerText = activeTime.getHours().toString().padStart(2, '0') + ':' + activeTime.getMinutes().toString().padStart(2, '0');
+            
+            drivers.forEach((d, i) => {
+                const stats = calculate(d, activeTime);
+                const card = document.getElementById(`card-${i}`);
+                const riskEl = document.getElementById(`risk-${i}`);
+                const paceEl = document.getElementById(`pace-${i}`);
+                const predEl = document.getElementById(`pred-${i}`);
+
+                riskEl.innerText = `${stats.risk}%`;
+                riskEl.className = `text-2xl font-black ${stats.risk >= 100 ? 'text-red-500' : 'text-green-400'}`;
+                
+                if (stats.risk >= 100 && stats.predict > 0) {
+                    card.classList.add('alert-active');
+                } else {
+                    card.classList.remove('alert-active');
+                }
+
+                paceEl.innerText = stats.pace;
+                predEl.innerText = stats.predict > 0 ? `${stats.predict}個` : '完配見込';
+                predEl.className = `text-xl font-bold ${stats.predict > 0 ? 'text-red-400' : 'text-green-400'}`;
+            });
+        }
+
+        function updateField(index, field, value) {
+            drivers[index][field] = value;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(drivers));
+            updateCalculations(); // 再描画ではなく数値更新のみ
+        }
+
+        function resetToNow() {
+            isSimMode = false;
+            const now = new Date();
+            document.getElementById('time-slider').value = now.getHours() * 60 + now.getMinutes();
+            document.getElementById('mode-badge').innerText = "Real-time";
+            document.getElementById('mode-badge').className = "text-[9px] font-bold px-2 py-0.5 rounded bg-green-900 text-green-300 inline-block uppercase";
+            updateCalculations();
+        }
+
+        document.getElementById('time-slider').oninput = function() {
+            isSimMode = true;
+            simMinutes = Number(this.value);
+            document.getElementById('mode-badge').innerText = "Simulation";
+            document.getElementById('mode-badge').className = "text-[9px] font-bold px-2 py-0.5 rounded bg-yellow-900 text-yellow-300 inline-block uppercase";
+            updateCalculations();
+        };
+
+        const savedKey = localStorage.getItem("active_license_key_v10");
+        if (savedKey && LICENSE_MASTER[savedKey]) startApp();
+    </script>
+</body>
+</html>
