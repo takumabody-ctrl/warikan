@@ -1,275 +1,1048 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FLEET MONITOR | Amazon DP Special</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { background-color: #0a0c10; color: #e6edf3; font-family: -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
-        .card { background: #161b22; border: 1px solid #30363d; border-radius: 16px; padding: 16px; position: relative; }
-        .card.alert-active { border: 2px solid #f85149; background: #211515; box-shadow: 0 0 20px rgba(248, 81, 73, 0.15); }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>グループ割り勘計算機</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --primary:#00BFA5;--primary-d:#00897B;--primary-l:#E0F2F1;
+  --bg:#F0F5F4;--card:#fff;--text:#263238;--muted:#78909C;
+  --danger:#E53935;--success:#43A047;--warn:#FB8C00;
+  --border:#E0E0E0;--sh:0 2px 8px rgba(0,0,0,.08);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Hiragino Sans,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;max-width:600px;margin:0 auto}
 
-        .scroll-select {
-            background: #0d1117;
-            border: 1px solid #30363d;
-            border-radius: 8px;
-            padding: 10px 5px;
-            text-align: center;
-            color: white;
-            width: 100%;
-            font-weight: bold;
-            font-size: 16px;
-            appearance: none;
-            cursor: pointer;
-            outline: none;
-        }
-        .scroll-select:focus { border-color: #58a6ff; }
+/* ─── Header ─── */
+.hd{background:linear-gradient(135deg,var(--primary),var(--primary-d));color:#fff;padding:14px 20px 12px;text-align:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,191,165,.35)}
+.hd h1{font-size:17px;font-weight:800;letter-spacing:.3px}
+.hd p{font-size:11px;opacity:.82;margin-top:2px}
 
-        .time-select { color-scheme: dark; }
+/* ─── Tabs ─── */
+.tabs{display:flex;background:#fff;border-bottom:2px solid var(--border);position:sticky;top:56px;z-index:99;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.tab{flex:1;padding:11px 6px;text-align:center;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-2px;transition:color .2s,border-color .2s;user-select:none}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.tab-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--primary);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;padding:0 4px;margin-left:3px;vertical-align:middle}
 
-        .label-text { font-size: 10px; color: #8b949e; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; display: block; text-align: center; }
-        #auth-overlay { position: fixed; inset: 0; background: #0a0c10; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+/* ─── Content ─── */
+.pane{display:none;padding:14px 14px 100px}
+.pane.active{display:block}
 
-        select option { background: #0d1117; color: white; }
-    </style>
+/* ─── Cards ─── */
+.card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:var(--sh)}
+.card-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.card-title{font-weight:700;font-size:14px}
+
+/* ─── Forms ─── */
+.fg{margin-bottom:13px}
+.fl{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.6px}
+.fi,.fs{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:15px;color:var(--text);background:#fff;transition:border-color .2s;-webkit-appearance:none;appearance:none}
+.fi:focus,.fs:focus{outline:none;border-color:var(--primary)}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+
+/* ─── Buttons ─── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;border:none;transition:opacity .15s,transform .1s;user-select:none}
+.btn:active{opacity:.82;transform:scale(.97)}
+.btn-p{background:var(--primary);color:#fff}
+.btn-ol{background:transparent;color:var(--primary);border:1.5px solid var(--primary)}
+.btn-d{background:#FFEBEE;color:var(--danger)}
+.btn-line{background:#06C755;color:#fff}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:7px}
+.btn-full{width:100%}
+
+/* ─── Toggle group (role / drink / split) ─── */
+.tog{display:flex;gap:0;border:1.5px solid var(--border);border-radius:9px;overflow:hidden}
+.tog-opt{flex:1;padding:9px 4px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);background:#fff;border-right:1px solid var(--border);transition:all .18s;line-height:1.3;user-select:none}
+.tog-opt:last-child{border-right:none}
+.tog-opt.on{color:#fff;background:var(--primary);border-color:var(--primary)}
+.tog-opt.on-senior{background:#FFF3E0;color:#BF360C;border-color:#FFAB91}
+.tog-opt.on-normal{background:#E8F5E9;color:#1B5E20;border-color:#A5D6A7}
+.tog-opt.on-junior{background:#E3F2FD;color:#0D47A1;border-color:#90CAF9}
+.tog-opt.on-drink{background:#FCE4EC;color:#880E4F;border-color:#F48FB1}
+.tog-opt.on-nodrink{background:#F3E5F5;color:#4A148C;border-color:#CE93D8}
+.tog-opt.on-late{background:#FFFDE7;color:#E65100;border-color:#FFE082}
+
+/* ─── Member list ─── */
+.mi{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.mi:last-child{border-bottom:none}
+.av{width:36px;height:36px;border-radius:50%;background:var(--primary-l);color:var(--primary-d);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0}
+.mi-info{flex:1;min-width:0}
+.mi-name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tags{display:flex;gap:3px;margin-top:3px;flex-wrap:wrap}
+.tag{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700;white-space:nowrap}
+.t-senior{background:#FFF3E0;color:#BF360C}.t-normal{background:#E8F5E9;color:#1B5E20}.t-junior{background:#E3F2FD;color:#0D47A1}
+.t-drink{background:#FCE4EC;color:#880E4F}.t-nodrink{background:#F3E5F5;color:#4A148C}.t-late{background:#FFFDE7;color:#E65100}
+.t-kanji{background:#EDE7F6;color:#6A1B9A}.t-lightdrink{background:#FFF8E1;color:#F57F17}.t-trouble{background:#FFEBEE;color:#B71C1C}.t-hk{background:#E8EAF6;color:#283593}
+
+/* ─── Special status chips (member modal) ─── */
+.sgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:6px}
+.sc{padding:10px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:700;text-align:center;cursor:pointer;color:var(--muted);background:#fff;transition:all .18s;user-select:none;line-height:1.4}
+.sc.on-kanji{border-color:#6A1B9A;background:#EDE7F6;color:#6A1B9A}
+.sc.on-lightDrink{border-color:#F57F17;background:#FFF8E1;color:#F57F17}
+.sc.on-trouble{border-color:#B71C1C;background:#FFEBEE;color:#B71C1C}
+.sc.on-hk{border-color:#283593;background:#E8EAF6;color:#283593}
+
+/* ─── Settings card ─── */
+.set-card{background:var(--card);border-radius:14px;padding:14px;margin-top:12px;box-shadow:var(--sh)}
+.set-hd{display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none}
+.set-title{font-weight:700;font-size:13px}
+.set-body{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.set-row{display:flex;align-items:center;gap:8px}
+.set-lbl{flex:1;font-size:12px;font-weight:600;color:var(--text)}
+.set-sub{font-size:10px;color:var(--muted)}
+.set-inp{width:60px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;font-weight:700;text-align:right;color:var(--text);background:#fff;-moz-appearance:textfield}
+.set-inp:focus{outline:none;border-color:var(--primary)}
+.set-inp::-webkit-outer-spin-button,.set-inp::-webkit-inner-spin-button{-webkit-appearance:none}
+.set-unit{font-size:12px;font-weight:700;color:var(--muted)}
+
+/* ─── Payment list ─── */
+.pi{padding:11px 0;border-bottom:1px solid var(--border)}
+.pi:last-child{border-bottom:none}
+.pi-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.pi-desc{font-weight:700;font-size:14px}
+.pi-amt{font-weight:800;font-size:16px;color:var(--primary-d);white-space:nowrap}
+.pi-meta{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.5}
+
+/* ─── Checkbox grid ─── */
+.cbg{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:6px}
+.cbi{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;transition:all .18s;user-select:none}
+.cbi.on{border-color:var(--primary);background:var(--primary-l)}
+.cb-box{width:18px;height:18px;border:2px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700;transition:all .18s}
+.cbi.on .cb-box{background:var(--primary);border-color:var(--primary);color:#fff}
+.cb-lbl{font-size:13px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ─── Summary bar ─── */
+.sbar{background:linear-gradient(135deg,var(--primary),var(--primary-d));border-radius:14px;padding:16px;color:#fff;margin-bottom:14px;text-align:center}
+.sbar h3{font-size:13px;opacity:.88;margin-bottom:3px}
+.sbar .tot{font-size:30px;font-weight:800}
+.sbar .sub{font-size:12px;opacity:.8;margin-top:3px}
+
+/* ─── Balance grid ─── */
+.bgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+.bc{background:#fff;border-radius:10px;padding:12px;box-shadow:var(--sh);text-align:center}
+.bc-name{font-size:12px;font-weight:700;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bc-amt{font-size:17px;font-weight:800}
+.pos{color:var(--success)}.neg{color:var(--danger)}.zer{color:var(--muted)}
+
+/* ─── Settlement items ─── */
+.si{display:flex;align-items:center;gap:10px;padding:13px 14px;background:#fff;border-radius:11px;margin-bottom:8px;box-shadow:var(--sh);transition:opacity .3s}
+.si.done{opacity:.45}
+.si-info{flex:1;min-width:0}
+.si-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.si-name{font-weight:800;font-size:15px}
+.si-arr{color:var(--muted);font-size:13px}
+.si-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.si-amt{font-size:19px;font-weight:800;color:var(--primary-d);white-space:nowrap}
+.si-btn{width:34px;height:34px;border-radius:50%;border:2px solid var(--primary);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--primary);transition:all .2s;flex-shrink:0}
+.si-btn.done{background:var(--success);border-color:var(--success);color:#fff}
+
+/* ─── Section label ─── */
+.sec{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+
+/* ─── Empty state ─── */
+.empty{text-align:center;padding:36px 16px;color:var(--muted)}
+.empty .ico{font-size:42px;margin-bottom:10px}
+.empty .txt{font-size:14px;line-height:1.6}
+
+/* ─── Modal ─── */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;backdrop-filter:blur(2px)}
+.ov.open{display:flex}
+.mo{background:#fff;border-radius:20px 20px 0 0;padding:20px;width:100%;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+@keyframes sup{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.ov.open .mo{animation:sup .28s cubic-bezier(.25,.46,.45,.94)}
+.mo-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.mo-title{font-size:17px;font-weight:800}
+.mo-x{width:28px;height:28px;border-radius:50%;background:var(--bg);border:none;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+
+/* ─── Snackbar ─── */
+.snk{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(80px);background:#323232;color:#fff;padding:11px 20px;border-radius:9px;font-size:13px;z-index:400;transition:transform .25s;white-space:nowrap;pointer-events:none;max-width:90vw;text-align:center}
+.snk.show{transform:translateX(-50%) translateY(0)}
+
+/* ─── Misc ─── */
+.select-all-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.all-done-banner{background:#E8F5E9;border-radius:10px;padding:14px;text-align:center;color:var(--success);font-weight:700;font-size:15px;margin-bottom:12px}
+.help-tip{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5}
+</style>
 </head>
-<body class="p-4 pb-20">
+<body>
 
-    <div id="auth-overlay">
-        <h2 class="text-xl font-bold mb-2 text-blue-400 italic font-black">FLEET MONITOR</h2>
-        <p class="text-[10px] text-gray-600 mb-8 uppercase tracking-widest text-center">Authentication Required for DP Admin</p>
-        <input type="password" id="pass-input" class="scroll-select max-w-xs mb-2" placeholder="Password" onkeydown="if(event.key==='Enter')validateLicense()">
-        <p id="auth-error" style="display:none;" class="text-red-400 text-xs mb-3">パスワードが違います</p>
-        <button onclick="validateLicense()" class="bg-blue-600 text-white px-10 py-3 rounded-full font-bold active:scale-95 transition-all mt-2">認証</button>
+<div class="hd">
+  <h1>💴 グループ割り勘計算機</h1>
+  <p>登録不要・自動保存・最小送金で精算</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active" id="tab-members" onclick="go('members')">👥 メンバー<span class="tab-badge" id="badge-members">0</span></div>
+  <div class="tab" id="tab-payments" onclick="go('payments')">💰 支払い<span class="tab-badge" id="badge-payments">0</span></div>
+  <div class="tab" id="tab-results" onclick="go('results')">📊 精算</div>
+</div>
+
+<!-- ─── Members pane ─── -->
+<div class="pane active" id="pane-members">
+  <div id="member-list"></div>
+  <button class="btn btn-p btn-full" onclick="openMM()">＋ メンバーを追加</button>
+
+  <!-- Settings card -->
+  <div class="set-card">
+    <div class="set-hd" onclick="togSetCard()">
+      <span class="set-title">⚙️ 割引・割増の設定</span>
+      <span id="set-arrow" style="font-size:13px;color:var(--muted);transition:transform .2s">▼</span>
+    </div>
+    <div class="set-body" id="set-body" style="display:none">
+      <div class="set-row">
+        <div class="set-lbl">🎖️ 幹事割引<br><span class="set-sub">準備・予約してくれた人</span></div>
+        <input class="set-inp" type="number" id="cfg-kanji" value="20" min="0" max="90" inputmode="numeric" onchange="saveSettings()">
+        <span class="set-unit">% 引き</span>
+      </div>
+      <div class="set-row">
+        <div class="set-lbl">🥂 ちょい飲み割引<br><span class="set-sub">少ししか飲まなかった人</span></div>
+        <input class="set-inp" type="number" id="cfg-light" value="30" min="0" max="90" inputmode="numeric" onchange="saveSettings()">
+        <span class="set-unit">% 引き</span>
+      </div>
+      <div class="set-row">
+        <div class="set-lbl">😤 迷惑割増<br><span class="set-sub">お店・友達に迷惑をかけた人</span></div>
+        <input class="set-inp" type="number" id="cfg-trouble" value="30" min="0" max="200" inputmode="numeric" onchange="saveSettings()">
+        <span class="set-unit">% 増し</span>
+      </div>
+      <div class="set-row">
+        <div class="set-lbl">🚗 ハンドルキーパー割引<br><span class="set-sub">運転で皆を送ってくれた人</span></div>
+        <input class="set-inp" type="number" id="cfg-hk" value="50" min="0" max="100" inputmode="numeric" onchange="saveSettings()">
+        <span class="set-unit">% 引き</span>
+      </div>
+      <p class="help-tip" style="margin-top:4px">
+        ※ 割引・割増は他のメンバーで補填され、合計金額は変わりません
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Payments pane ─── -->
+<div class="pane" id="pane-payments">
+  <div id="payment-list"></div>
+  <button class="btn btn-p btn-full" onclick="openPM()" id="add-pay-btn">＋ 支払いを追加</button>
+</div>
+
+<!-- ─── Results pane ─── -->
+<div class="pane" id="pane-results">
+  <div id="results"></div>
+</div>
+
+<!-- ─── Member Modal ─── -->
+<div class="ov" id="mm">
+  <div class="mo">
+    <div class="mo-hd">
+      <span class="mo-title">メンバーを追加</span>
+      <button class="mo-x" onclick="closeMM()">✕</button>
     </div>
 
-    <div id="main-content" style="display:none;">
-        <header class="max-w-4xl mx-auto mb-6">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <h1 class="text-2xl font-black tracking-tighter text-blue-400 italic">FLEET MONITOR</h1>
-                    <div id="mode-badge" class="text-[9px] font-bold px-2 py-0.5 rounded bg-green-900 text-green-300 inline-block uppercase">Real-time</div>
-                </div>
-                <div class="text-right">
-                    <div class="label-text">Time Control</div>
-                    <input type="time" id="sim-time-input" class="bg-transparent text-3xl font-mono font-black text-blue-400 border-none outline-none text-right time-select" oninput="toggleSimMode(this.value)">
-                    <br>
-                    <button onclick="resetToNow()" class="mt-2 text-[10px] font-bold bg-blue-600 text-white px-3 py-1 rounded-full active:scale-95 transition-all">↺ 現在時刻に同期</button>
-                </div>
-            </div>
-        </header>
+    <div class="fg">
+      <label class="fl">名前</label>
+      <input type="text" class="fi" id="mn" placeholder="例：田中" maxlength="10" autocomplete="off">
+    </div>
 
-        <div class="max-w-4xl mx-auto mb-3 flex justify-between items-center">
-            <span id="driver-count" class="text-xs text-gray-500 font-bold"></span>
-            <button onclick="addDriver()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-4 py-2 rounded-full active:scale-95 transition-all">＋ ドライバー追加</button>
+    <div class="fg">
+      <label class="fl">役割（傾斜割り勘用）</label>
+      <div class="tog" id="role-tog">
+        <div class="tog-opt" data-v="senior" onclick="pickRole(this)">先輩<br><small style="opacity:.7;font-size:9px">多め ×1.5</small></div>
+        <div class="tog-opt on-normal" data-v="normal" onclick="pickRole(this)">普通<br><small style="opacity:.7;font-size:9px">標準 ×1.0</small></div>
+        <div class="tog-opt" data-v="junior" onclick="pickRole(this)">後輩<br><small style="opacity:.7;font-size:9px">少なめ ×0.7</small></div>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label class="fl">飲み状況</label>
+      <div class="tog" id="drink-tog">
+        <div class="tog-opt on-drink" data-v="drink" onclick="pickDrink(this)">🍺 飲む</div>
+        <div class="tog-opt" data-v="nodrink" onclick="pickDrink(this)">🚫 飲まない</div>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label class="fl">遅刻</label>
+      <div class="tog" id="late-tog">
+        <div class="tog-opt" data-v="1" onclick="pickLate(this)">⏰ 遅刻あり</div>
+        <div class="tog-opt on" data-v="0" onclick="pickLate(this)">通常参加</div>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label class="fl">特別ステータス（複数選択可）</label>
+      <div class="sgrid">
+        <div class="sc" data-flag="kanji" onclick="togFlag(this)">🎖️ 幹事<br><small style="opacity:.7;font-size:9px">割引あり</small></div>
+        <div class="sc" data-flag="lightDrink" onclick="togFlag(this)">🥂 ちょい飲み<br><small style="opacity:.7;font-size:9px">割引あり</small></div>
+        <div class="sc" data-flag="trouble" onclick="togFlag(this)">😤 迷惑した<br><small style="opacity:.7;font-size:9px">割増あり</small></div>
+        <div class="sc" data-flag="hk" onclick="togFlag(this)">🚗 ハンドルキーパー<br><small style="opacity:.7;font-size:9px">割引あり</small></div>
+      </div>
+    </div>
+
+    <button class="btn btn-p btn-full" id="mm-submit" onclick="addMember()">追加する</button>
+  </div>
+</div>
+
+<!-- ─── Payment Modal ─── -->
+<div class="ov" id="pm">
+  <div class="mo">
+    <div class="mo-hd">
+      <span class="mo-title">支払いを追加</span>
+      <button class="mo-x" onclick="closePM()">✕</button>
+    </div>
+
+    <div class="fg">
+      <label class="fl">内容</label>
+      <input type="text" class="fi" id="pd" placeholder="例：居酒屋代" maxlength="20" autocomplete="off">
+    </div>
+
+    <div class="fg">
+      <label class="fl">金額（円）</label>
+      <input type="number" class="fi" id="pa" placeholder="例：15000" min="0" inputmode="numeric">
+    </div>
+
+    <div class="fg">
+      <label class="fl">支払った人</label>
+      <select class="fs" id="pp"></select>
+    </div>
+
+    <div class="fg">
+      <label class="fl">割り勘方法</label>
+      <div class="tog" id="split-tog">
+        <div class="tog-opt on" data-v="equal" onclick="pickSplit(this)">均等割り<br><small style="opacity:.7;font-size:9px">全員同額</small></div>
+        <div class="tog-opt" data-v="weighted" onclick="pickSplit(this)">傾斜割り<br><small style="opacity:.7;font-size:9px">役職で変動</small></div>
+        <div class="tog-opt" data-v="drink" onclick="pickSplit(this)">飲み別計算<br><small style="opacity:.7;font-size:9px">飲む人だけ</small></div>
+      </div>
+    </div>
+
+    <div class="fg" id="drink-note" style="display:none">
+      <div style="background:#FFF3E0;border-radius:8px;padding:10px 12px;font-size:12px;color:#E65100;font-weight:600">
+        ⚠️ 「飲み別計算」は飲む人のみが割り勘されます。<br>飲まない人・遅刻者は下の対象メンバーから除外してください。
+      </div>
+    </div>
+
+    <div class="fg">
+      <div class="select-all-row">
+        <label class="fl" style="margin:0">対象メンバー</label>
+        <button class="btn btn-ol btn-sm" onclick="togAll()">全選択 / 解除</button>
+      </div>
+      <div class="cbg" id="pcbg"></div>
+    </div>
+
+    <button class="btn btn-p btn-full" id="pm-submit" onclick="addPayment()">追加する</button>
+  </div>
+</div>
+
+<div class="snk" id="snk"></div>
+
+<script>
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+const STORAGE_KEY = 'warikan_v2';
+const W = {senior:1.5, normal:1.0, junior:0.7};
+const RLBL = {senior:'先輩', normal:'普通', junior:'後輩'};
+const DLBL = {drink:'🍺 飲む', nodrink:'🚫 飲まない'};
+
+const DEFAULT_SETTINGS = {kanjiDiscount:20, lightDrinkDiscount:30, troubleSurcharge:30, hkDiscount:50};
+let S = {members:[], payments:[], settled:{}, settings:{...DEFAULT_SETTINGS}};
+let tRole = 'normal', tDrink = 'drink', tLate = false, tSplit = 'equal';
+let tFlags = {kanji:false, lightDrink:false, trouble:false, hk:false};
+let editMId = null;
+let editPId = null;
+
+// ═══════════════════════════════════════════
+//  PERSISTENCE
+// ═══════════════════════════════════════════
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch(e) {}
+}
+function load() {
+  try {
+    const d = localStorage.getItem(STORAGE_KEY);
+    if (d) {
+      S = JSON.parse(d);
+      if (!S.settled) S.settled = {};
+      if (!S.settings) S.settings = {...DEFAULT_SETTINGS};
+      else S.settings = {...DEFAULT_SETTINGS, ...S.settings};
+      S.members.forEach(m => {
+        if (m.drink === 'late') { m.drink = 'drink'; m.late = true; }
+        if (m.late === undefined) m.late = false;
+        if (!m.flags) m.flags = {kanji:false, lightDrink:false, trouble:false, hk:false};
+      });
+    }
+  } catch(e) {}
+}
+
+function saveSettings() {
+  S.settings.kanjiDiscount     = Math.min(90,  Math.max(0, parseInt(document.getElementById('cfg-kanji').value)||0));
+  S.settings.lightDrinkDiscount= Math.min(90,  Math.max(0, parseInt(document.getElementById('cfg-light').value)||0));
+  S.settings.troubleSurcharge  = Math.min(200, Math.max(0, parseInt(document.getElementById('cfg-trouble').value)||0));
+  S.settings.hkDiscount        = Math.min(100, Math.max(0, parseInt(document.getElementById('cfg-hk').value)||0));
+  save();
+}
+
+function togSetCard() {
+  const body = document.getElementById('set-body');
+  const arrow = document.getElementById('set-arrow');
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'flex' : 'none';
+  arrow.style.transform = open ? 'rotate(180deg)' : '';
+  if (open) {
+    document.getElementById('cfg-kanji').value   = S.settings.kanjiDiscount;
+    document.getElementById('cfg-light').value   = S.settings.lightDrinkDiscount;
+    document.getElementById('cfg-trouble').value = S.settings.troubleSurcharge;
+    document.getElementById('cfg-hk').value      = S.settings.hkDiscount;
+  }
+}
+
+// ═══════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════
+function go(name) {
+  ['members','payments','results'].forEach(n => {
+    document.getElementById('tab-'+n).classList.toggle('active', n===name);
+    document.getElementById('pane-'+n).classList.toggle('active', n===name);
+  });
+  if (name==='results') renderResults();
+  if (name==='payments') renderPayments();
+  updateBadges();
+}
+
+function updateBadges() {
+  document.getElementById('badge-members').textContent = S.members.length;
+  document.getElementById('badge-payments').textContent = S.payments.length;
+}
+
+// ═══════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function yen(n) { return '¥'+Math.round(n).toLocaleString('ja-JP'); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function snack(msg) {
+  const el = document.getElementById('snk');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ═══════════════════════════════════════════
+//  MEMBER MODAL
+// ═══════════════════════════════════════════
+function openMM(id) {
+  editMId = id || null;
+  const m = id ? S.members.find(m=>m.id===id) : null;
+  document.querySelector('#mm .mo-title').textContent = m ? 'メンバーを編集' : 'メンバーを追加';
+  document.getElementById('mm-submit').textContent = m ? '保存する' : '追加する';
+  document.getElementById('mn').value = m ? m.name : '';
+  tRole  = m ? m.role  : 'normal';
+  tDrink = m ? m.drink : 'drink';
+  tLate  = m ? (m.late || false) : false;
+  tFlags = m ? {...{kanji:false,lightDrink:false,trouble:false,hk:false}, ...(m.flags||{})}
+             : {kanji:false, lightDrink:false, trouble:false, hk:false};
+  applyTog('role-tog', tRole, 'on-');
+  applyTog('drink-tog', tDrink, 'on-');
+  applySimpleTog('late-tog', tLate ? '1' : '0');
+  document.querySelectorAll('.sc').forEach(el => {
+    const f = el.dataset.flag;
+    [...el.classList].filter(c=>c.startsWith('on-')).forEach(c=>el.classList.remove(c));
+    if (tFlags[f]) el.classList.add('on-'+f);
+  });
+  document.getElementById('mm').classList.add('open');
+  setTimeout(() => document.getElementById('mn').focus(), 120);
+}
+function closeMM() { document.getElementById('mm').classList.remove('open'); editMId = null; }
+
+function applyTog(id, val, pfx) {
+  document.querySelectorAll('#'+id+' .tog-opt').forEach(o => {
+    const ok = o.dataset.v === val;
+    // remove all on-* classes first
+    [...o.classList].filter(c=>c.startsWith('on')).forEach(c=>o.classList.remove(c));
+    if (ok) o.classList.add(pfx+val);
+  });
+}
+
+function pickRole(el) {
+  tRole = el.dataset.v;
+  applyTog('role-tog', tRole, 'on-');
+}
+function pickDrink(el) {
+  tDrink = el.dataset.v;
+  applyTog('drink-tog', tDrink, 'on-');
+}
+function pickLate(el) {
+  tLate = el.dataset.v === '1';
+  applySimpleTog('late-tog', el.dataset.v);
+}
+function applySimpleTog(id, val) {
+  document.querySelectorAll('#'+id+' .tog-opt').forEach(o => {
+    [...o.classList].filter(c=>c.startsWith('on')).forEach(c=>o.classList.remove(c));
+    if (o.dataset.v === val) o.classList.add('on');
+  });
+}
+function togFlag(el) {
+  const f = el.dataset.flag;
+  tFlags[f] = !tFlags[f];
+  [...el.classList].filter(c=>c.startsWith('on-')).forEach(c=>el.classList.remove(c));
+  if (tFlags[f]) el.classList.add('on-'+f);
+}
+
+function addMember() {
+  const name = document.getElementById('mn').value.trim();
+  if (!name) { snack('名前を入力してください'); return; }
+  const dup = S.members.find(m=>m.name===name && m.id!==editMId);
+  if (dup) { snack('同じ名前のメンバーがいます'); return; }
+  if (editMId) {
+    const m = S.members.find(m=>m.id===editMId);
+    if (m) { m.name=name; m.role=tRole; m.drink=tDrink; m.late=tLate; m.flags={...tFlags}; }
+    snack(name+' を更新しました');
+  } else {
+    S.members.push({id:uid(), name, role:tRole, drink:tDrink, late:tLate, flags:{...tFlags}});
+    snack(name+' を追加しました');
+  }
+  save(); closeMM(); renderMembers(); updateBadges();
+}
+
+function delMember(id) {
+  const m = S.members.find(m=>m.id===id);
+  if (!confirm(m.name+' を削除しますか？')) return;
+  S.members = S.members.filter(m=>m.id!==id);
+  S.payments = S.payments
+    .map(p=>({...p, participants:p.participants.filter(pid=>pid!==id)}))
+    .filter(p=>p.paidBy!==id);
+  save(); renderMembers(); renderPayments(); updateBadges();
+  snack('削除しました');
+}
+
+// ═══════════════════════════════════════════
+//  RENDER MEMBERS
+// ═══════════════════════════════════════════
+function renderMembers() {
+  const el = document.getElementById('member-list');
+  if (!S.members.length) {
+    el.innerHTML = `<div class="empty"><div class="ico">👥</div><div class="txt">メンバーを追加してください<br><small>まず名前・役割・飲み状況を設定します</small></div></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="card">
+    <div class="card-hd"><span class="card-title">メンバー（${S.members.length}人）</span></div>
+    ${S.members.map(m=>`
+      <div class="mi">
+        <div class="av">${esc(m.name[0])}</div>
+        <div class="mi-info">
+          <div class="mi-name">${esc(m.name)}</div>
+          <div class="tags">
+            <span class="tag t-${m.role}">${RLBL[m.role]}</span>
+            <span class="tag t-${m.drink}">${DLBL[m.drink]||''}</span>
+            ${m.late ? '<span class="tag t-late">⏰ 遅刻</span>' : ''}
+            ${(m.flags||{}).kanji      ? '<span class="tag t-kanji">🎖️ 幹事</span>' : ''}
+            ${(m.flags||{}).lightDrink ? '<span class="tag t-lightdrink">🥂 ちょい飲み</span>' : ''}
+            ${(m.flags||{}).trouble    ? '<span class="tag t-trouble">😤 迷惑</span>' : ''}
+            ${(m.flags||{}).hk         ? '<span class="tag t-hk">🚗 HK</span>' : ''}
+          </div>
         </div>
-        <div id="grid" class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="btn btn-ol btn-sm" onclick="openMM('${m.id}')">編集</button>
+          <button class="btn btn-d btn-sm" onclick="delMember('${m.id}')">削除</button>
+        </div>
+      </div>`).join('')}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════
+//  PAYMENT MODAL
+// ═══════════════════════════════════════════
+function openPM(id) {
+  if (S.members.length < 2) { snack('メンバーを2人以上追加してください'); return; }
+  editPId = id || null;
+  const p = id ? S.payments.find(p=>p.id===id) : null;
+  document.querySelector('#pm .mo-title').textContent = p ? '支払いを編集' : '支払いを追加';
+  document.getElementById('pm-submit').textContent = p ? '保存する' : '追加する';
+  document.getElementById('pd').value = p ? p.desc : '';
+  document.getElementById('pa').value = p ? p.amount : '';
+  tSplit = p ? p.splitType : 'equal';
+  applyTog('split-tog', tSplit, 'on');
+  document.getElementById('drink-note').style.display = tSplit==='drink' ? 'block' : 'none';
+
+  // payer
+  document.getElementById('pp').innerHTML = S.members.map(m=>`<option value="${m.id}" ${p&&p.paidBy===m.id?'selected':''}>${esc(m.name)}</option>`).join('');
+
+  // checkboxes – checked = in participants (or all if new)
+  document.getElementById('pcbg').innerHTML = S.members.map(m=>{
+    const checked = p ? p.participants.includes(m.id) : true;
+    return `<div class="cbi ${checked?'on':''}" data-id="${m.id}" onclick="togCB(this)">
+      <div class="cb-box">${checked?'✓':''}</div>
+      <span class="cb-lbl">${esc(m.name)}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('pm').classList.add('open');
+  setTimeout(() => document.getElementById('pd').focus(), 120);
+}
+function closePM() { document.getElementById('pm').classList.remove('open'); editPId = null; }
+
+function pickSplit(el) {
+  tSplit = el.dataset.v;
+  // clear all on-* then set on
+  document.querySelectorAll('#split-tog .tog-opt').forEach(o=>{
+    [...o.classList].filter(c=>c.startsWith('on')).forEach(c=>o.classList.remove(c));
+  });
+  el.classList.add('on');
+  document.getElementById('drink-note').style.display = tSplit==='drink' ? 'block' : 'none';
+}
+
+function togCB(el) {
+  el.classList.toggle('on');
+  el.querySelector('.cb-box').textContent = el.classList.contains('on') ? '✓' : '';
+}
+
+function togAll() {
+  const items = document.querySelectorAll('#pcbg .cbi');
+  const allOn = [...items].every(i=>i.classList.contains('on'));
+  items.forEach(i => {
+    if (allOn) { i.classList.remove('on'); i.querySelector('.cb-box').textContent=''; }
+    else { i.classList.add('on'); i.querySelector('.cb-box').textContent='✓'; }
+  });
+}
+
+function addPayment() {
+  const desc = document.getElementById('pd').value.trim();
+  const amount = parseInt(document.getElementById('pa').value);
+  const paidBy = document.getElementById('pp').value;
+  const participants = [...document.querySelectorAll('#pcbg .cbi.on')].map(e=>e.dataset.id);
+
+  if (!desc) { snack('内容を入力してください'); return; }
+  if (!amount || amount<=0) { snack('正しい金額を入力してください'); return; }
+  if (!participants.length) { snack('対象メンバーを選択してください'); return; }
+
+  if (editPId) {
+    const p = S.payments.find(p=>p.id===editPId);
+    if (p) { p.desc=desc; p.amount=amount; p.paidBy=paidBy; p.participants=participants; p.splitType=tSplit; }
+    snack(desc+' を更新しました');
+  } else {
+    S.payments.push({id:uid(), desc, amount, paidBy, participants, splitType:tSplit});
+    snack(desc+' を追加しました');
+  }
+  save(); closePM(); renderPayments(); updateBadges();
+}
+
+function delPayment(id) {
+  if (!confirm('この支払いを削除しますか？')) return;
+  S.payments = S.payments.filter(p=>p.id!==id);
+  save(); renderPayments(); updateBadges();
+  snack('削除しました');
+}
+
+// ═══════════════════════════════════════════
+//  RENDER PAYMENTS
+// ═══════════════════════════════════════════
+function renderPayments() {
+  const el = document.getElementById('payment-list');
+  if (!S.payments.length) {
+    el.innerHTML = `<div class="empty"><div class="ico">💰</div><div class="txt">支払いを追加してください<br><small>誰が・いくら・誰の分を払ったか記録します</small></div></div>`;
+    return;
+  }
+  const total = S.payments.reduce((s,p)=>s+p.amount,0);
+  const STLBL = {equal:'均等割り', weighted:'傾斜割り', drink:'飲み別'};
+  el.innerHTML = `
+    <div class="sbar">
+      <h3>合計金額</h3>
+      <div class="tot">${yen(total)}</div>
+      <div class="sub">${S.payments.length}件の支払い</div>
     </div>
+    <div class="card">
+      ${S.payments.map(p=>{
+        const payer = S.members.find(m=>m.id===p.paidBy);
+        const names = p.participants.map(id=>{ const m=S.members.find(m=>m.id===id); return m?m.name:'?'; }).join('、');
+        return `<div class="pi">
+          <div class="pi-top">
+            <div style="flex:1;min-width:0">
+              <div class="pi-desc">${esc(p.desc)}</div>
+              <div class="pi-meta">
+                支払：${payer?esc(payer.name):'?'} ／ ${STLBL[p.splitType]||'均等'}<br>
+                対象：${esc(names)}（${p.participants.length}人）
+              </div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div class="pi-amt">${yen(p.amount)}</div>
+              <div style="display:flex;gap:4px;margin-top:5px;justify-content:flex-end">
+                <button class="btn btn-ol btn-sm" onclick="openPM('${p.id}')">編集</button>
+                <button class="btn btn-d btn-sm" onclick="delPayment('${p.id}')">削除</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
 
-    <script>
-        const LICENSE_MASTER = { "amz-dp-trial": "2026-04-02" };
-        const STORAGE_KEY = 'fleet_pro_v2';
-        let isSimMode = false;
-        let drivers = [];
+// ═══════════════════════════════════════════
+//  CALCULATE
+// ═══════════════════════════════════════════
 
-        function generateOptions(selected) {
-            let options = "";
-            for (let i = 0; i <= 300; i++) {
-                options += `<option value="${i}" ${i === selected ? 'selected' : ''}>${i}</option>`;
-            }
-            return options;
-        }
+// Returns {memberId: share} for one payment item
+function calcPaymentShares(p) {
+  const pts = p.participants.filter(id=>S.members.find(m=>m.id===id));
+  if (!pts.length) return {};
+  const shares = {};
+  let tw = 0;
+  pts.forEach(id => {
+    const m = S.members.find(m=>m.id===id);
+    let w = (p.splitType==='weighted') ? (m ? W[m.role] : 1) : 1.0;
+    const f = (m&&m.flags) || {};
+    const cfg = S.settings;
+    if (f.kanji)      w *= (1 - cfg.kanjiDiscount      / 100);
+    if (f.lightDrink) w *= (1 - cfg.lightDrinkDiscount / 100);
+    if (f.trouble)    w *= (1 + cfg.troubleSurcharge   / 100);
+    if (f.hk)         w *= (1 - cfg.hkDiscount         / 100);
+    shares[id] = Math.max(w, 0.01);
+    tw += shares[id];
+  });
+  pts.forEach(id => { shares[id] = p.amount * (shares[id] / tw); });
+  return shares;
+}
 
-        function validateLicense() {
-            const input = document.getElementById('pass-input').value.trim();
-            if (input in LICENSE_MASTER) {
-                localStorage.setItem("fleet_auth", input);
-                document.getElementById('auth-error').style.display = 'none';
-                startApp();
-            } else {
-                document.getElementById('auth-error').style.display = 'block';
-            }
-        }
+function calcBalances() {
+  const net = {};
+  S.members.forEach(m=>net[m.id]=0);
+  S.payments.forEach(p=>{
+    const shares = calcPaymentShares(p);
+    const pts = Object.keys(shares);
+    if (!pts.length) return;
+    if (net[p.paidBy]!==undefined) net[p.paidBy]+=p.amount;
+    pts.forEach(id=>{ if(net[id]!==undefined) net[id]-=shares[id]; });
+  });
+  return net;
+}
 
-        function startApp() {
-            document.getElementById('auth-overlay').style.display = 'none';
-            document.getElementById('main-content').style.display = 'block';
-            initApp();
-        }
+function minimizeTx(net) {
+  const cred=[], debt=[];
+  Object.entries(net).forEach(([id,b])=>{
+    if (b>0.5) cred.push({id,a:b});
+    else if (b<-0.5) debt.push({id,a:-b});
+  });
+  cred.sort((a,b)=>b.a-a.a);
+  debt.sort((a,b)=>b.a-a.a);
 
-        function initApp() {
-            try {
-                const saved = localStorage.getItem(STORAGE_KEY);
-                drivers = saved ? JSON.parse(saved) : null;
-                if (!Array.isArray(drivers)) drivers = null;
-            } catch(e) {
-                drivers = null;
-                localStorage.removeItem(STORAGE_KEY);
-            }
-            if (!drivers) {
-                drivers = Array.from({ length: 5 }, (_, i) => ({
-                    id: i, name: `Driver ${i + 1}`, total: 100, done: 0, absent: 0, start: "08:00", end: "20:00"
-                }));
-            }
-            resetToNow();
-            setupInitialDOM();
-            updateCalculations();
-            setInterval(() => { if (!isSimMode) { resetToNowDisplay(); updateCalculations(); } }, 30000);
-        }
+  const tx=[];
+  while (cred.length && debt.length) {
+    const c=cred[0], d=debt[0];
+    const amt=Math.min(c.a,d.a);
+    const r=Math.round(amt);
+    if (r>0) tx.push({from:d.id, to:c.id, amount:r});
+    c.a-=amt; d.a-=amt;
+    if (c.a<0.5) cred.shift();
+    if (d.a<0.5) debt.shift();
+  }
+  return tx;
+}
 
-        function setupInitialDOM() {
-            const container = document.getElementById('grid');
-            container.innerHTML = '';
-            updateDriverCount();
-            drivers.forEach((d, i) => {
-                const div = document.createElement('div');
-                div.id = `card-${i}`;
-                div.className = `card`;
-                div.innerHTML = `
-                    <div class="flex justify-between items-center mb-4">
-                        <input class="bg-transparent font-bold text-white border-b border-gray-700 w-1/2 outline-none" value="${d.name}" oninput="updateField(${i}, 'name', this.value)">
-                        <div class="flex items-center gap-3">
-                            <div class="text-right">
-                                <span class="label-text">Risk Score</span>
-                                <div id="risk-${i}" class="text-2xl font-black">0%</div>
-                            </div>
-                            <button onclick="removeDriver(${i})" class="text-gray-600 hover:text-red-400 text-xl font-bold leading-none active:scale-95 transition-all" title="削除">✕</button>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2 mb-4">
-                        <div class="bg-black/40 p-3 rounded-lg border border-white/5">
-                            <span class="label-text">Pace</span>
-                            <div class="text-xl font-bold text-blue-300"><span id="pace-${i}">0.0</span><span class="text-[10px] ml-1">/h</span></div>
-                        </div>
-                        <div class="bg-black/40 p-3 rounded-lg border border-white/5">
-                            <span class="label-text">未配予測</span>
-                            <div id="pred-${i}" class="text-xl font-bold text-green-400">完配見込</div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <span class="label-text text-blue-400">完了数</span>
-                            <select class="scroll-select" onchange="updateField(${i}, 'done', Number(this.value))">
-                                ${generateOptions(d.done)}
-                            </select>
-                        </div>
-                        <div>
-                            <span class="label-text text-orange-400">不在数</span>
-                            <select class="scroll-select" onchange="updateField(${i}, 'absent', Number(this.value))">
-                                ${generateOptions(d.absent)}
-                            </select>
-                        </div>
-                        <div class="col-span-2 grid grid-cols-3 gap-2 pt-2 border-t border-gray-800 mt-2">
-                            <div>
-                                <span class="label-text">持ち出し個数</span>
-                                <select class="scroll-select text-sm" onchange="updateField(${i}, 'total', Number(this.value))">
-                                    ${generateOptions(d.total)}
-                                </select>
-                            </div>
-                            <div>
-                                <span class="label-text">開始</span>
-                                <input type="time" class="scroll-select text-sm time-select" value="${d.start}" oninput="updateField(${i}, 'start', this.value)">
-                            </div>
-                            <div>
-                                <span class="label-text">終了</span>
-                                <input type="time" class="scroll-select text-sm time-select" value="${d.end}" oninput="updateField(${i}, 'end', this.value)">
-                            </div>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(div);
-            });
-        }
+// ═══════════════════════════════════════════
+//  RENDER RESULTS
+// ═══════════════════════════════════════════
+function renderResults() {
+  const el = document.getElementById('results');
+  if (!S.members.length) {
+    el.innerHTML = `<div class="empty"><div class="ico">👥</div><div class="txt">メンバーを追加してください</div></div>`;
+    return;
+  }
+  if (!S.payments.length) {
+    el.innerHTML = `<div class="empty"><div class="ico">💰</div><div class="txt">支払いを追加してください</div></div>`;
+    return;
+  }
 
-        function calculate(d, activeTime) {
-            const parse = (t) => {
-                const [h, m] = t.split(':').map(Number);
-                const dt = new Date(activeTime); dt.setHours(h, m, 0, 0); return dt;
-            };
-            const start = parse(d.start);
-            const end = parse(d.end);
-            const elapsed = Math.max(0.1, (activeTime - start) / (1000 * 60 * 60));
-            const remaining = Math.max(0.1, (end - activeTime) / (1000 * 60 * 60));
-            const currentPace = d.done / elapsed;
-            const leftItems = Math.max(0, d.total - d.done - d.absent);
-            const reqPace = leftItems / remaining;
-            const risk = d.done > 0 ? Math.min(100, Math.floor((reqPace / Math.max(0.1, currentPace)) * 100)) : 0;
-            const predict = Math.max(0, Math.ceil(leftItems - (currentPace * remaining)));
-            return { risk, predict, pace: currentPace.toFixed(1) };
-        }
+  const net = calcBalances();
+  const txs = minimizeTx({...net});
+  const total = S.payments.reduce((s,p)=>s+p.amount,0);
+  const doneCount = txs.filter((_,i)=>S.settled[txKey(txs[i],i)]).length;
 
-        function updateCalculations() {
-            const timeVal = document.getElementById('sim-time-input').value;
-            const activeTime = new Date();
-            if (isSimMode && timeVal) {
-                const [h, m] = timeVal.split(':').map(Number);
-                activeTime.setHours(h, m, 0, 0);
-            }
+  let html = `
+    <div class="sbar">
+      <h3>合計金額</h3>
+      <div class="tot">${yen(total)}</div>
+      <div class="sub">${S.members.length}人 ／ ${S.payments.length}件の支払い</div>
+    </div>
+    <div class="sec">各自の収支</div>
+    <div class="bgrid">
+      ${S.members.map(m=>{
+        const b=net[m.id]||0;
+        const cls=b>0.5?'pos':b<-0.5?'neg':'zer';
+        const lbl=b>0.5?'受取':'';
+        return `<div class="bc">
+          <div class="bc-name">${esc(m.name)}</div>
+          <div class="bc-amt ${cls}">${lbl}${yen(Math.abs(b))}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="sec">精算内容（${doneCount}/${txs.length}件完了）</div>`;
 
-            drivers.forEach((d, i) => {
-                const stats = calculate(d, activeTime);
-                const card = document.getElementById(`card-${i}`);
-                if (!card) return;
+  if (!txs.length) {
+    html += `<div class="all-done-banner">🎉 精算不要です！</div>`;
+  } else {
+    if (doneCount===txs.length && txs.length>0) {
+      html += `<div class="all-done-banner">✅ 全て精算完了！</div>`;
+    }
+    html += txs.map((t,i)=>{
+      const k=txKey(t,i);
+      const done=!!S.settled[k];
+      const fm=S.members.find(m=>m.id===t.from);
+      const tm=S.members.find(m=>m.id===t.to);
+      return `<div class="si ${done?'done':''}" id="si-${i}">
+        <div class="si-info">
+          <div class="si-row">
+            <span class="si-name">${fm?esc(fm.name):'?'}</span>
+            <span class="si-arr">→</span>
+            <span class="si-name">${tm?esc(tm.name):'?'}</span>
+          </div>
+          <div class="si-sub">${fm?esc(fm.name):'?'} が ${tm?esc(tm.name):'?'} に支払う</div>
+        </div>
+        <div class="si-amt">${yen(t.amount)}</div>
+        <button class="si-btn ${done?'done':''}" onclick="togSettle('${t.from}','${t.to}',${i})" title="精算完了にする">
+          ${done?'✓':''}
+        </button>
+      </div>`;
+    }).join('');
+  }
 
-                const riskEl = document.getElementById(`risk-${i}`);
-                riskEl.innerText = `${stats.risk}%`;
-                riskEl.className = `text-2xl font-black ${stats.risk >= 90 ? 'text-red-500' : 'text-green-400'}`;
+  html += `
+    <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-line btn-full" onclick="shareLINE()">📲 LINEでシェア</button>
+      <button class="btn btn-p btn-full" style="background:#37474F" onclick="exportPDF()">📄 PDF出力（精算書）</button>
+      <button class="btn btn-ol btn-full" onclick="doReset()">🗑️ データをリセット</button>
+    </div>
+    <div style="height:10px"></div>`;
 
-                document.getElementById(`pace-${i}`).innerText = stats.pace;
+  el.innerHTML = html;
+}
 
-                const predEl = document.getElementById(`pred-${i}`);
-                predEl.innerText = stats.predict > 0 ? `${stats.predict}個` : '完配見込';
-                predEl.className = `text-xl font-bold ${stats.predict > 0 ? 'text-red-400' : 'text-green-400'}`;
+function txKey(t,i) { return `${t.from}|${t.to}|${i}`; }
 
-                if (stats.risk >= 90 && stats.predict > 0) card.classList.add('alert-active'); else card.classList.remove('alert-active');
-            });
-        }
+function togSettle(from,to,i) {
+  const k=txKey({from,to},i);
+  S.settled[k]=!S.settled[k];
+  save(); renderResults();
+}
 
-        function toggleSimMode(val) { isSimMode = true; document.getElementById('mode-badge').innerText = "Simulation"; document.getElementById('mode-badge').className = "text-[9px] font-bold px-2 py-0.5 rounded bg-yellow-900 text-yellow-300 inline-block uppercase"; updateCalculations(); }
+// ═══════════════════════════════════════════
+//  PDF EXPORT
+// ═══════════════════════════════════════════
+function exportPDF() {
+  if (!S.members.length || !S.payments.length) { snack('メンバーと支払いを追加してください'); return; }
 
-        function resetToNow() {
-            isSimMode = false;
-            resetToNowDisplay();
-            document.getElementById('mode-badge').innerText = "Real-time";
-            document.getElementById('mode-badge').className = "text-[9px] font-bold px-2 py-0.5 rounded bg-green-900 text-green-300 inline-block uppercase";
-            updateCalculations();
-        }
+  const net = calcBalances();
+  const txs = minimizeTx({...net});
+  const total = S.payments.reduce((s,p)=>s+p.amount,0);
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  const timeStr = now.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
 
-        function resetToNowDisplay() {
-            const now = new Date();
-            document.getElementById('sim-time-input').value = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-        }
+  // Per-member totals
+  const paid = {}, share = {};
+  S.members.forEach(m=>{ paid[m.id]=0; share[m.id]=0; });
+  S.payments.forEach(p=>{
+    if (paid[p.paidBy]!==undefined) paid[p.paidBy]+=p.amount;
+    Object.entries(calcPaymentShares(p)).forEach(([id,s])=>{ if(share[id]!==undefined) share[id]+=s; });
+  });
 
-        function updateField(index, field, value) {
-            drivers[index][field] = value;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(drivers));
-            updateCalculations();
-        }
+  const STLBL = {equal:'均等割り', weighted:'傾斜割り', drink:'飲み別計算'};
+  const FLBL   = {kanji:'🎖️ 幹事', lightDrink:'🥂 ちょい飲み', trouble:'😤 迷惑', hk:'🚗 HK'};
+  const e = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-        function addDriver() {
-            drivers.push({ id: Date.now(), name: `Driver ${drivers.length + 1}`, total: 100, done: 0, absent: 0, start: "08:00", end: "20:00" });
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(drivers));
-            setupInitialDOM();
-            updateCalculations();
-        }
+  const membersRows = S.members.map(m=>{
+    const f = m.flags||{};
+    const fl = Object.entries(FLBL).filter(([k])=>f[k]).map(([,v])=>`<span class="ftag">${v}</span>`).join(' ');
+    return `<tr><td><b>${e(m.name)}</b></td><td>${RLBL[m.role]}</td><td>${DLBL[m.drink]||''}</td><td>${m.late?'⏰ あり':'─'}</td><td>${fl||'─'}</td></tr>`;
+  }).join('');
 
-        function removeDriver(index) {
-            if (drivers.length <= 1) { alert("最低1人は必要です"); return; }
-            if (!confirm(`「${drivers[index].name}」を削除しますか？`)) return;
-            drivers.splice(index, 1);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(drivers));
-            setupInitialDOM();
-            updateCalculations();
-        }
+  const payRows = S.payments.map((p,i)=>{
+    const payer = S.members.find(m=>m.id===p.paidBy);
+    const pts = p.participants.map(id=>{ const m=S.members.find(m=>m.id===id); return m?m.name:'?'; }).join('、');
+    return `<tr><td>${i+1}</td><td>${e(p.desc)}</td><td class="r"><b>${yen(p.amount)}</b></td><td>${payer?e(payer.name):'?'}</td><td>${STLBL[p.splitType]||'均等'}</td><td>${e(pts)}</td></tr>`;
+  }).join('');
 
-        function updateDriverCount() {
-            const el = document.getElementById('driver-count');
-            if (el) el.textContent = `${drivers.length} ドライバー`;
-        }
+  const balRows = S.members.map(m=>{
+    const b = net[m.id]||0;
+    const cls = b>0.5?'pos':b<-0.5?'neg':'';
+    const lbl = b>0.5?`+${yen(Math.round(b))} 受取`:b<-0.5?`${yen(Math.round(b))} 支払`:'±¥0 精算不要';
+    return `<tr><td><b>${e(m.name)}</b></td><td class="r">${yen(Math.round(paid[m.id]||0))}</td><td class="r">${yen(Math.round(share[m.id]||0))}</td><td class="r ${cls}">${lbl}</td></tr>`;
+  }).join('');
 
-        const _saved = localStorage.getItem("fleet_auth");
-        if (_saved && _saved in LICENSE_MASTER) startApp();
-    </script>
+  const settleRows = !txs.length
+    ? `<tr><td colspan="4" style="text-align:center;color:#2E7D32;font-weight:700;padding:12px">✅ 精算不要 — 全員均等に支払い済みです</td></tr>`
+    : txs.map((t,i)=>{
+        const fm=S.members.find(m=>m.id===t.from), tm=S.members.find(m=>m.id===t.to);
+        return `<tr><td>${i+1}</td><td><b>${fm?e(fm.name):'?'}</b></td><td><b>${tm?e(tm.name):'?'}</b></td><td class="r"><b>${yen(t.amount)}</b></td><td style="text-align:center">□</td></tr>`;
+      }).join('');
+
+  // Per-member per-payment breakdown
+  const breakdownCols = S.members.map(m=>`<th>${e(m.name)}</th>`).join('');
+  const breakdownRows = S.payments.map(p=>{
+    const sh = calcPaymentShares(p);
+    const payer = S.members.find(m=>m.id===p.paidBy);
+    const cells = S.members.map(m=>{
+      const s = sh[m.id];
+      return s!=null ? `<td class="r">${yen(Math.round(s))}</td>` : `<td class="r" style="color:#bbb">─</td>`;
+    }).join('');
+    return `<tr><td>${e(p.desc)}</td><td class="r">${yen(p.amount)}</td><td>${payer?e(payer.name):'?'}</td>${cells}</tr>`;
+  }).join('');
+  const totalCells = S.members.map(m=>`<td class="r"><b>${yen(Math.round(share[m.id]||0))}</b></td>`).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="ja"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>グループ割り勘精算書</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Sans','Yu Gothic UI',Meiryo,sans-serif;font-size:10.5pt;color:#1a1a1a;background:#fff;padding:16mm 18mm 12mm}
+@page{size:A4;margin:12mm 16mm}
+@media print{body{padding:0}.no-print{display:none!important}}
+h1{font-size:17pt;font-weight:900;text-align:center;color:#00695C;border-bottom:3px solid #00BFA5;padding-bottom:7px;margin-bottom:3px}
+.sub{text-align:center;font-size:8.5pt;color:#666;margin-bottom:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.sbox{border:1.5px solid #B2DFDB;border-radius:7px;padding:8px;text-align:center}
+.sbox .l{font-size:8pt;color:#888;margin-bottom:2px}
+.sbox .v{font-size:13pt;font-weight:900;color:#00695C}
+.sec{font-size:10pt;font-weight:800;color:#00695C;border-left:4px solid #00BFA5;padding-left:7px;margin:13px 0 6px}
+table{width:100%;border-collapse:collapse;font-size:9.5pt;margin-bottom:2px}
+th{background:#E0F2F1;color:#00695C;font-weight:700;padding:5px 7px;border:1px solid #B2DFDB;text-align:left;white-space:nowrap}
+td{padding:4px 7px;border:1px solid #ddd;vertical-align:middle}
+tr:nth-child(even) td{background:#FAFFFE}
+.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pos{color:#1B5E20;font-weight:700}.neg{color:#B71C1C;font-weight:700}
+.ftag{display:inline-block;font-size:7.5pt;padding:1px 5px;border-radius:8px;background:#EDE7F6;color:#4A148C;margin:1px}
+.notice{font-size:8.5pt;color:#555;background:#F5F5F5;padding:7px 10px;border-radius:5px;margin-top:6px;line-height:1.6}
+.sign-row{display:flex;gap:14px;margin-top:10px}
+.sign-box{flex:1;border:1px solid #ccc;border-radius:5px;padding:8px 10px}
+.sign-lbl{font-size:8pt;color:#888;margin-bottom:20px}
+.sign-line{border-bottom:1px solid #bbb;padding-top:4px;font-size:7.5pt;color:#aaa;text-align:right}
+.print-btn{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 auto 16px;padding:10px 32px;background:#00BFA5;color:#fff;font-size:14px;font-weight:800;border:none;border-radius:9px;cursor:pointer;box-shadow:0 3px 10px rgba(0,191,165,.35)}
+.cfg-tbl td{font-size:9pt}
+</style>
+</head><body>
+
+<button class="print-btn no-print" onclick="window.print()">🖨️ PDFとして保存 / 印刷する</button>
+
+<h1>グループ割り勘精算書</h1>
+<div class="sub">作成日時：${dateStr}　${timeStr}</div>
+
+<div class="grid3">
+  <div class="sbox"><div class="l">合計金額</div><div class="v">${yen(total)}</div></div>
+  <div class="sbox"><div class="l">参加人数</div><div class="v">${S.members.length}名</div></div>
+  <div class="sbox"><div class="l">支払件数</div><div class="v">${S.payments.length}件</div></div>
+</div>
+
+<div class="sec">■ 参加メンバー</div>
+<table><thead><tr><th>名前</th><th>役割</th><th>飲み</th><th>遅刻</th><th>特別ステータス</th></tr></thead>
+<tbody>${membersRows}</tbody></table>
+
+<div class="sec">■ 支払い明細</div>
+<table><thead><tr><th>No</th><th>内容</th><th class="r">金額</th><th>支払者</th><th>割り方</th><th>対象メンバー</th></tr></thead>
+<tbody>${payRows}
+<tr style="background:#E0F2F1"><td colspan="2" style="text-align:right;font-weight:700;color:#00695C">合計</td><td class="r" style="font-weight:900;color:#00695C">${yen(total)}</td><td colspan="3"></td></tr>
+</tbody></table>
+
+<div class="sec">■ 個人別負担明細</div>
+<table><thead><tr><th>内容</th><th class="r">金額</th><th>支払者</th>${breakdownCols}</tr></thead>
+<tbody>${breakdownRows}
+<tr style="background:#E0F2F1"><td colspan="3" style="text-align:right;font-weight:700;color:#00695C">負担合計</td>${totalCells}</tr>
+</tbody></table>
+
+<div class="sec">■ 個人別収支</div>
+<table><thead><tr><th>名前</th><th class="r">立替払い</th><th class="r">負担額合計</th><th class="r">収支（差額）</th></tr></thead>
+<tbody>${balRows}</tbody></table>
+
+<div class="sec">■ 精算指示（最小送金回数）</div>
+<table><thead><tr><th>No</th><th>送金者</th><th>受取者</th><th class="r">金額</th><th style="text-align:center;width:48px">完了</th></tr></thead>
+<tbody>${settleRows}</tbody></table>
+
+<div class="sec">■ 適用した割引・割増設定</div>
+<table class="cfg-tbl"><thead><tr><th>項目</th><th>設定値</th><th>対象メンバー</th></tr></thead>
+<tbody>
+<tr><td>🎖️ 幹事割引</td><td>${S.settings.kanjiDiscount}% 引き</td><td>${S.members.filter(m=>(m.flags||{}).kanji).map(m=>m.name).join('、')||'なし'}</td></tr>
+<tr><td>🥂 ちょい飲み割引</td><td>${S.settings.lightDrinkDiscount}% 引き</td><td>${S.members.filter(m=>(m.flags||{}).lightDrink).map(m=>m.name).join('、')||'なし'}</td></tr>
+<tr><td>😤 迷惑割増</td><td>${S.settings.troubleSurcharge}% 増し</td><td>${S.members.filter(m=>(m.flags||{}).trouble).map(m=>m.name).join('、')||'なし'}</td></tr>
+<tr><td>🚗 ハンドルキーパー割引</td><td>${S.settings.hkDiscount}% 引き</td><td>${S.members.filter(m=>(m.flags||{}).hk).map(m=>m.name).join('、')||'なし'}</td></tr>
+</tbody></table>
+
+<div class="notice">
+  ※ 本精算書はグループ割り勘計算機により自動生成されました。<br>
+  ※ 金額は端数処理（四捨五入）により合計と1円程度の差が生じる場合があります。<br>
+  ※ 確定申告・経費精算の際は、別途領収書・レシート原本とあわせて保管してください。<br>
+  ※ 割引・割増は他メンバーへ按分されるため合計金額は変わりません。
+</div>
+
+<div class="sec">■ 確認署名欄</div>
+<div class="sign-row">
+  <div class="sign-box"><div class="sign-lbl">精算責任者（幹事）</div><div class="sign-line">氏名・日付</div></div>
+  <div class="sign-box"><div class="sign-lbl">確認者</div><div class="sign-line">氏名・日付</div></div>
+  <div class="sign-box"><div class="sign-lbl">確認者</div><div class="sign-line">氏名・日付</div></div>
+</div>
+
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { snack('ポップアップをブロックされました。ブラウザの設定で許可してください'); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
+// ═══════════════════════════════════════════
+//  LINE SHARE
+// ═══════════════════════════════════════════
+function shareLINE() {
+  const net=calcBalances();
+  const txs=minimizeTx({...net});
+  const total=S.payments.reduce((s,p)=>s+p.amount,0);
+
+  let txt=`💴 割り勘精算\n合計：${yen(total)}\n参加：${S.members.length}人\n\n`;
+  if (!txs.length) {
+    txt+='✅ 精算不要！みんなお疲れさま🎉';
+  } else {
+    txt+='【送金リスト】\n';
+    txs.forEach(t=>{
+      const f=S.members.find(m=>m.id===t.from);
+      const o=S.members.find(m=>m.id===t.to);
+      txt+=`${f?f.name:'?'} → ${o?o.name:'?'}：${yen(t.amount)}\n`;
+    });
+    txt+='\n【各自の支払い目安】\n';
+    S.members.forEach(m=>{
+      const b=net[m.id]||0;
+      if (b<-0.5) txt+=`${m.name}：${yen(Math.abs(b))}\n`;
+    });
+  }
+  txt+='\n---\nグループ割り勘計算機で計算';
+
+  window.open('https://line.me/R/msg/text/?'+encodeURIComponent(txt),'_blank');
+}
+
+// ═══════════════════════════════════════════
+//  RESET
+// ═══════════════════════════════════════════
+function doReset() {
+  if (!confirm('全データをリセットしますか？\nこの操作は元に戻せません。')) return;
+  S={members:[],payments:[],settled:{}};
+  save(); renderMembers(); renderPayments();
+  go('members'); snack('リセットしました');
+}
+
+// ═══════════════════════════════════════════
+//  CLOSE MODAL ON BACKDROP
+// ═══════════════════════════════════════════
+document.querySelectorAll('.ov').forEach(ov=>{
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.classList.remove('open'); });
+});
+
+// enter key on member/payment name inputs
+document.getElementById('mn').addEventListener('keydown',e=>{ if(e.key==='Enter') addMember(); });
+document.getElementById('pd').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('pa').focus(); });
+
+// ═══════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════
+load();
+renderMembers();
+renderPayments();
+updateBadges();
+</script>
 </body>
 </html>
