@@ -164,6 +164,17 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .select-all-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .all-done-banner{background:#E8F5E9;border-radius:10px;padding:14px;text-align:center;color:var(--success);font-weight:700;font-size:15px;margin-bottom:12px}
 .help-tip{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5}
+
+/* ─── Saved groups ─── */
+.grp-item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border)}
+.grp-item:last-child{border-bottom:none}
+.grp-info{flex:1;min-width:0}
+.grp-name{font-weight:700;font-size:14px}
+.grp-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.grp-members{font-size:12px;color:var(--text);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grp-btns{display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+.save-btns{display:flex;gap:8px;margin-top:8px}
+.save-btns .btn{flex:1;font-size:12px;padding:9px 6px}
 </style>
 </head>
 <body>
@@ -183,6 +194,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 <div class="pane active" id="pane-members">
   <div id="member-list"></div>
   <button class="btn btn-p btn-full" onclick="openMM()">＋ メンバーを追加</button>
+  <div class="save-btns">
+    <button class="btn btn-ol" onclick="openSGM()">💾 メンバーを保存</button>
+    <button class="btn btn-ol" id="load-group-btn" onclick="openLGM()">📂 保存リストを読み込む</button>
+  </div>
 
   <!-- Settings card -->
   <div class="set-card">
@@ -328,6 +343,33 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     </div>
 
     <button class="btn btn-p btn-full" id="pm-submit" onclick="addPayment()">追加する</button>
+  </div>
+</div>
+
+<!-- ─── Save Group Modal ─── -->
+<div class="ov" id="sgm">
+  <div class="mo">
+    <div class="mo-hd">
+      <span class="mo-title">💾 メンバーリストを保存</span>
+      <button class="mo-x" onclick="closeSGM()">✕</button>
+    </div>
+    <div class="fg">
+      <label class="fl">グループ名</label>
+      <input type="text" class="fi" id="grp-name" placeholder="例：会社の飲み会メンバー" maxlength="20" autocomplete="off">
+    </div>
+    <div id="sgm-preview" style="margin-bottom:12px"></div>
+    <button class="btn btn-p btn-full" onclick="doSaveGroup()">このメンバーを保存する</button>
+  </div>
+</div>
+
+<!-- ─── Load Group Modal ─── -->
+<div class="ov" id="lgm">
+  <div class="mo">
+    <div class="mo-hd">
+      <span class="mo-title">📂 保存済みメンバーリスト</span>
+      <button class="mo-x" onclick="closeLGM()">✕</button>
+    </div>
+    <div id="lgm-list"></div>
   </div>
 </div>
 
@@ -807,7 +849,8 @@ function renderResults() {
     <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">
       <button class="btn btn-line btn-full" onclick="shareLINE()">📲 LINEでシェア</button>
       <button class="btn btn-p btn-full" style="background:#37474F" onclick="exportPDF()">📄 PDF出力（精算書）</button>
-      <button class="btn btn-ol btn-full" onclick="doReset()">🗑️ データをリセット</button>
+      <button class="btn btn-ol btn-full" onclick="resetPayments()">🔄 支払いをリセット（メンバー保持）</button>
+      <button class="btn btn-d btn-full" style="font-size:13px" onclick="doReset()">🗑️ 全データをリセット</button>
     </div>
     <div style="height:10px"></div>`;
 
@@ -1018,11 +1061,106 @@ function shareLINE() {
 // ═══════════════════════════════════════════
 //  RESET
 // ═══════════════════════════════════════════
+function resetPayments() {
+  if (!confirm('支払いデータをリセットしますか？\nメンバーはそのまま残ります。')) return;
+  S.payments=[]; S.settled={};
+  save(); renderPayments(); renderResults();
+  snack('支払いをリセットしました');
+}
+
 function doReset() {
-  if (!confirm('全データをリセットしますか？\nこの操作は元に戻せません。')) return;
-  S={members:[],payments:[],settled:{}};
+  if (!confirm('全データをリセットしますか？\nメンバーも含めて全て削除されます。\nこの操作は元に戻せません。')) return;
+  S={members:[],payments:[],settled:{},settings:{...DEFAULT_SETTINGS}};
   save(); renderMembers(); renderPayments();
   go('members'); snack('リセットしました');
+}
+
+// ═══════════════════════════════════════════
+//  MEMBER GROUP SAVE / LOAD
+// ═══════════════════════════════════════════
+const GROUPS_KEY = 'warikan_members_v1';
+
+function loadGroups() {
+  try { return JSON.parse(localStorage.getItem(GROUPS_KEY)) || []; } catch(e) { return []; }
+}
+function saveGroups(groups) {
+  try { localStorage.setItem(GROUPS_KEY, JSON.stringify(groups)); } catch(e) {}
+}
+
+function updateLoadBtn() {
+  const btn = document.getElementById('load-group-btn');
+  if (!btn) return;
+  const cnt = loadGroups().length;
+  btn.style.opacity = cnt ? '1' : '0.5';
+  btn.textContent = cnt ? `📂 保存リスト（${cnt}件）` : '📂 保存リストを読み込む';
+}
+
+function openSGM() {
+  if (!S.members.length) { snack('保存するメンバーがいません'); return; }
+  document.getElementById('grp-name').value = '';
+  const preview = S.members.map(m=>`<span class="tag t-${m.role}">${esc(m.name)}</span>`).join(' ');
+  document.getElementById('sgm-preview').innerHTML =
+    `<div style="padding:10px;background:var(--bg);border-radius:8px;line-height:2">${preview}</div>`;
+  document.getElementById('sgm').classList.add('open');
+  setTimeout(()=>document.getElementById('grp-name').focus(), 120);
+}
+function closeSGM() { document.getElementById('sgm').classList.remove('open'); }
+
+function doSaveGroup() {
+  const name = document.getElementById('grp-name').value.trim() || '保存グループ';
+  const groups = loadGroups();
+  const now = new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'short',day:'numeric'});
+  groups.unshift({ id:uid(), name, savedAt:now, members:S.members.map(m=>({...m})) });
+  saveGroups(groups.slice(0, 10));
+  closeSGM(); updateLoadBtn();
+  snack(`「${name}」を保存しました`);
+}
+
+function openLGM() {
+  renderLGM();
+  document.getElementById('lgm').classList.add('open');
+}
+function closeLGM() { document.getElementById('lgm').classList.remove('open'); }
+
+function renderLGM() {
+  const groups = loadGroups();
+  const el = document.getElementById('lgm-list');
+  if (!groups.length) {
+    el.innerHTML = `<div class="empty"><div class="ico">💾</div><div class="txt">保存済みのメンバーリストがありません<br><small>メンバータブの「💾 メンバーを保存」から登録できます</small></div></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="card" style="margin-bottom:0">` +
+    groups.map(g => {
+      const preview = g.members.slice(0,5).map(m=>esc(m.name)).join('、') + (g.members.length>5?'…':'');
+      return `<div class="grp-item">
+        <div class="grp-info">
+          <div class="grp-name">${esc(g.name)}</div>
+          <div class="grp-meta">${g.members.length}人 ／ 保存日：${g.savedAt}</div>
+          <div class="grp-members">${preview}</div>
+        </div>
+        <div class="grp-btns">
+          <button class="btn btn-p btn-sm" onclick="doLoadGroup('${g.id}')">読み込む</button>
+          <button class="btn btn-d btn-sm" onclick="doDeleteGroup('${g.id}')">削除</button>
+        </div>
+      </div>`;
+    }).join('') + `</div>`;
+}
+
+function doLoadGroup(id) {
+  const g = loadGroups().find(g=>g.id===id);
+  if (!g) return;
+  if (S.members.length && !confirm(`「${g.name}」を読み込みます。\n現在のメンバーリストは上書きされます。`)) return;
+  S.members = g.members.map(m=>({...m}));
+  save(); closeLGM(); renderMembers(); updateBadges();
+  snack(`「${g.name}」を読み込みました（${g.members.length}人）`);
+}
+
+function doDeleteGroup(id) {
+  const g = loadGroups().find(g=>g.id===id);
+  if (!g || !confirm(`「${g.name}」を削除しますか？`)) return;
+  saveGroups(loadGroups().filter(g=>g.id!==id));
+  renderLGM(); updateLoadBtn();
+  snack('削除しました');
 }
 
 // ═══════════════════════════════════════════
@@ -1043,6 +1181,7 @@ load();
 renderMembers();
 renderPayments();
 updateBadges();
+updateLoadBtn();
 </script>
 </body>
 </html>
