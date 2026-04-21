@@ -298,15 +298,14 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <thead>
           <tr>
             <th>需要</th>
-            <th>カテゴリ</th>
-            <th>商品名 / 抽選名</th>
+            <th>ルート</th>
+            <th>商品名（型番）</th>
             <th>仕入</th>
             <th>メルカリ相場</th>
             <th>推定利益</th>
-            <th>応募期間</th>
-            <th>難易度</th>
-            <th>応募方法</th>
-            <th>AI分析</th>
+            <th>期間</th>
+            <th>仕入れ先・応募先</th>
+            <th>AI分析・理由</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -420,8 +419,10 @@ function calcProfit(mercari, cost){
   return Math.round(mercari*(1-MERCARI_FEE) - cost - ship);
 }
 
-function mercariUrl(name){ return 'https://www.mercari.com/jp/search/?keyword='+encodeURIComponent(name)+'&status=on_sale&sort=created_time&order=desc'; }
-function yahooUrl(name){ return 'https://auctions.yahoo.co.jp/search/search?p='+encodeURIComponent(name)+'&va='+encodeURIComponent(name)+'&s1=end&o1=d'; }
+function mercariUrl(kw){ return 'https://jp.mercari.com/search?keyword='+encodeURIComponent(kw)+'&status=on_sale&sort=created_time&order=desc'; }
+function mercariSoldUrl(kw){ return 'https://jp.mercari.com/search?keyword='+encodeURIComponent(kw)+'&status=sold_out&sort=created_time&order=desc'; }
+function yahooUrl(kw){ return 'https://auctions.yahoo.co.jp/search/search?p='+encodeURIComponent(kw)+'&s1=end&o1=d'; }
+function yahooSoldUrl(kw){ return 'https://auctions.yahoo.co.jp/search/search?p='+encodeURIComponent(kw)+'&s1=end&o1=d&aucmaxprice=&mode=2'; }
 
 // ═══════════════════════════════════
 //  SETTINGS
@@ -495,58 +496,92 @@ const PHASE_DEFS = [
 function buildPrompt(phase, selectedCatIds, count, timeRange, maxPrice){
   const dateStr = today();
 
+  // ── 即転売（中古仕入れ）ルート ──
   if(phase.id === 'phase3'){
-    return `あなたは日本のフリマ・オークション市場に精通したリサーチアナリストです。本日は${dateStr}です。古物商免許を持つ転売業者向けのリサーチです。
+    return `あなたは日本の古物市場・フリマアービトラージに精通したプロのリサーチアナリストです。本日は${dateStr}です。
+古物商免許を持つ転売業者向けに、メルカリ・ヤフオクで安く仕入れて即転売できる商品を${count}件リストアップしてください。
 
-メルカリ・ヤフオクで安く仕入れて即転売で利益が出る商品を${count}件リストアップしてください。
+【絶対ルール：商品名は必ず型番・品番・世代・カラーを含む正式名称を記載すること】
+❌ 悪い例：「Nintendo Switch 状態良好」「スニーカー Nike レア」「フィギュア 人気」
+✅ 良い例：「Nintendo Switch OLED HEG-001 ホワイト」「Nike Air Jordan 1 Retro High OG 'Chicago' 555088-101 US10」「ワンピース DXF グランドラインメン Vol.23 エース BANPRESTO」
 
-【対象商品】
-ポケモンカード・スポーツカード・スニーカー（Nike/New Balance等）・フィギュア・ブランド品・ゲームソフト・レトロゲーム・ヴィンテージ品・時計・カメラ・楽器・アニメグッズ・LEGO・BEARBRICK等、古物商が扱える高回転商品
+【対象カテゴリ】ポケモンカード・スポーツカード・スニーカー・フィギュア・ブランドバッグ・腕時計・カメラ・レトロゲーム・楽器・LEGO・BEARBRICK・ヴィンテージ衣類
 
 【条件】
 - 仕入れ上限: ${maxPrice}円以内
-- 利益率30%以上（送料700円・メルカリ手数料10%込み）
-- 実際にメルカリ・ヤフオクで売却実績がある商品のみ
-- 平均30日以内に売れる需要がある商品
+- 利益率30%以上（メルカリ手数料10%・送料700円込み）
+- 平均30日以内に売れる高回転商品
+- ヤフオクまたはメルカリの売却済み実績価格が確認できる商品のみ
 
-【除外】チケット・医薬品・食品・デジタルコンテンツ・偽ブランド品
+【仕入れルート（必須記載）】
+route = "中古仕入れ"
+routeDetail = ヤフオク/メルカリで仕入れ → 動作確認・清掃 → メルカリで出品　の具体的なステップ
 
-【仕入れ相場】= メルカリ・ヤフオクで現在出品されている安値帯（実際に購入可能な価格）
-【売却相場】= メルカリ・ヤフオクの売却済み・落札済み実績価格の平均（出品中価格ではない）
+【出力】JSON配列のみ。説明文・Markdown禁止。
 
-【出力】JSON配列のみ。説明文不要。
+[{
+  "product": "正式商品名＋型番・品番（例：Fender Japan Stratocaster ST-72-58 Vintage White 1993年製）",
+  "searchKeyword": "メルカリ・ヤフオクで仕入れ検索するキーワード（例：ストラトキャスター ST-72 フェンダージャパン）",
+  "route": "中古仕入れ",
+  "routeDetail": "①ヤフオクで『検索KW』と検索し相場より安い即決品を落札 → ②動作確認・クリーニング → ③メルカリに出品",
+  "category": "カテゴリ名",
+  "cost": 仕入れ相場整数,
+  "mercariPrice": メルカリ売却実績相場整数,
+  "profit": 推定利益整数,
+  "schedule": "常時仕入れ可能",
+  "applyMethod": "仕入れ先（例：ヤフオク即決・メルカリ即購入）",
+  "difficulty": "低or中or高",
+  "reason": "プレミア理由と実売根拠（例：ヤフオク落札実績○円×○件確認）",
+  "demand": "高or中",
+  "url": ""
+}]
 
-[{"product":"商品名（型番・モデル含む）","category":"即転売","cost":仕入れ相場整数,"mercariPrice":売却実績相場整数,"profit":推定利益整数,"schedule":"常時仕入れ可能","applyMethod":"仕入れ方法と検索キーワード","difficulty":"低or中or高","reason":"価格差の根拠と実売データ","demand":"高or中","url":"メルカリまたはヤフオクの検索URL"}]
-
-上記フォーマットで${count}件出力してください。`;
+${count}件出力してください。`;
   }
 
-  return `あなたは日本の転売・フリマ市場に精通したリサーチアナリストです。本日は${dateStr}です。
-以下の条件を満たす転売向け商品を${count}件、必ずJSON配列形式でリストアップしてください。
+  // ── 公式抽選・予約購入ルート ──
+  return `あなたは日本の転売リサーチに精通したプロアナリストです。本日は${dateStr}です。
+公式オンライン抽選・予約から転売利益を得るための商品を${count}件リストアップしてください。
 
-【検索カテゴリ】
-${phase.focus}
+【絶対ルール：商品名は必ず型番・品番・弾番・エディションを含む正式名称を記載】
+❌ 悪い例：「ポケモンカード 新弾」「Nike 限定スニーカー」「フィギュア 人気」
+✅ 良い例：「ポケモンカードゲーム SV8a 『テラスタルフェスex』BOX 2025年3月発売」「Nike Air Max 1 '86 OG 'Obsidian' FJ9426-400 2025年4月発売」「ワンピース Portrait.Of.Pirates MEGAOP エース 2025年5月配送予定」
+
+【検索カテゴリ】${phase.focus}
 
 【必須条件】
-1. ネット完結（スマホ・PCのみ）で応募・購入できること。店舗不要
-2. 公式サイト・正規販売店の抽選または販売のみ（二次流通除外）
-3. 応募・購入時期: ${dateStr}前後${timeRange}以内
-4. 仕入れ定価: ${maxPrice}円以下
-5. メルカリ・ヤフオクで定価の1.5倍以上で実際に取引されている商品のみ
-6. 個人でメルカリ出品可能な有形物
+1. 完全ネット完結（スマホ・PCのみ）。店舗不要
+2. 公式サイト・正規店の抽選のみ（転売サイト除外）
+3. 応募期間: ${dateStr}前後${timeRange}以内
+4. 定価: ${maxPrice}円以下
+5. メルカリ・ヤフオクの売却済み実績で定価1.5倍以上確認済み
 
-【除外】チケット・医薬品・デジタルコンテンツ・食品・転売禁止商品
+【仕入れルート（必須記載）】
+route = "公式抽選" または "公式予約"
+routeDetail = 具体的なステップ（例：①ポケモンセンターオンラインで会員登録 → ②抽選応募 → ③当選後クレカ決済 → ④自宅配送 → ⑤メルカリに出品）
 
-【メルカリ相場の算出】
-- 売却済み・落札済みの実際の成約価格を基準にすること（出品中価格ではない）
-- 複数件の中央値または平均値を使用
-- 根拠のある具体的な金額を記載（例: 「メルカリ売却済み実績: 8,000〜12,000円、平均10,000円」）
+【メルカリ相場は必ず売却済み実績価格を使用。出品中価格は使わないこと。】
 
-【出力】必ずJSON配列のみ。説明文・見出し・Markdownは一切不要。
+【出力】JSON配列のみ。説明文・Markdown禁止。
 
-[{"product":"商品名","category":"カテゴリ","cost":定価整数,"mercariPrice":メルカリ実売相場整数,"profit":推定利益整数,"schedule":"応募期間","applyMethod":"応募方法","difficulty":"低or中or高","reason":"プレ値理由と実売根拠","demand":"高or中","url":"公式応募URL"}]
+[{
+  "product": "正式商品名＋型番・弾番・発売日（例：ポケモンカードゲーム SV8a テラスタルフェスex BOX 2025/3/28発売）",
+  "searchKeyword": "メルカリで売却実績を検索するキーワード（例：テラスタルフェスex BOX）",
+  "route": "公式抽選",
+  "routeDetail": "①○○公式サイトで会員登録 → ②抽選応募（応募期間：○月○日〜○月○日） → ③当選後クレカ決済 → ④自宅配送（○月予定） → ⑤メルカリに出品",
+  "category": "カテゴリ名",
+  "cost": 定価整数,
+  "mercariPrice": メルカリ売却実績相場整数,
+  "profit": 推定利益整数,
+  "schedule": "応募期間（例：2025/04/15〜04/30）",
+  "applyMethod": "応募先サイト名（例：ポケモンセンターオンライン・会員登録必要）",
+  "difficulty": "低or中or高",
+  "reason": "プレミア理由と実売根拠（例：メルカリ売却済み実績○円×○件確認）",
+  "demand": "高or中",
+  "url": "公式応募ページのURL（不明な場合は空文字）"
+}]
 
-上記フォーマットで${count}件分のJSONを出力してください。`;
+${count}件出力してください。`;
 }
 
 // (model, apiVersion) pairs — ordered by availability
@@ -886,31 +921,49 @@ function renderTable(list){
   tbody.innerHTML = '';
   list.forEach((item,idx)=>{
     const badgeCls  = item.demand==='高' ? 'badge-high' : 'badge-mid';
-    const diffCls   = item.difficulty==='低' ? 'badge-diff-low' : item.difficulty==='高' ? 'badge-diff-high' : 'badge-diff-mid';
     const profitCls = (item.profit||0)>0 ? 'profit-pos' : 'profit-neg';
+    const isFlip    = item.route==='中古仕入れ';
+    const routeColor= isFlip ? 'var(--teal)' : 'var(--gold)';
+    const routeIcon = isFlip ? '♻️' : '🏆';
+    const routeLabel= item.route || (isFlip ? '中古仕入れ' : '公式抽選');
+    // Use searchKeyword for search links (more accurate than product name)
+    const kw = item.searchKeyword || item.product || '';
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><span class="badge ${badgeCls}">#${idx+1} ${esc(item.demand||'高')}</span></td>
-      <td style="color:var(--text-d);font-size:11px">${esc(item.category||'-')}</td>
-      <td style="font-weight:700;color:var(--text-b);min-width:160px">${esc(item.product||'-')}</td>
-      <td style="color:#ffbaba;white-space:nowrap">${yen(item.cost)}</td>
-      <td style="white-space:nowrap">
-        ${yen(item.mercariPrice)}
-        <div style="display:flex;gap:4px;margin-top:4px">
-          <a href="${esc(mercariUrl(item.product))}" target="_blank" class="btn btn-xs btn-gray">メルカリ</a>
-          <a href="${esc(yahooUrl(item.product))}" target="_blank" class="btn btn-xs btn-gray">ヤフオク</a>
+      <td>
+        <span class="badge ${badgeCls}">#${idx+1} ${esc(item.demand||'高')}</span>
+        <div style="font-size:10px;color:var(--text-d);margin-top:3px">${esc(item.category||'')}</div>
+      </td>
+      <td style="min-width:110px">
+        <div style="color:${routeColor};font-weight:700;font-size:11px">${routeIcon} ${esc(routeLabel)}</div>
+        ${item.routeDetail ? `<div style="font-size:10px;color:var(--text-d);margin-top:4px;line-height:1.5">${esc(item.routeDetail)}</div>` : ''}
+      </td>
+      <td style="min-width:200px">
+        <div style="font-weight:700;color:var(--text-b);font-size:12px;line-height:1.4">${esc(item.product||'-')}</div>
+        ${kw ? `<div style="font-size:10px;color:var(--gold);margin-top:3px">🔑 ${esc(kw)}</div>` : ''}
+      </td>
+      <td style="color:#ffbaba;white-space:nowrap;font-weight:700">${yen(item.cost)}</td>
+      <td style="min-width:130px">
+        <div style="font-weight:700;margin-bottom:4px">${yen(item.mercariPrice)}</div>
+        <div style="display:flex;gap:3px;flex-wrap:wrap">
+          <a href="${esc(mercariUrl(kw))}" target="_blank" class="btn btn-xs btn-gray" title="出品中">メルカリ</a>
+          <a href="${esc(mercariSoldUrl(kw))}" target="_blank" class="btn btn-xs btn-gray" title="売却済み実績">メルカリ実売</a>
+          <a href="${esc(yahooUrl(kw))}" target="_blank" class="btn btn-xs btn-gray">ヤフオク</a>
         </div>
       </td>
-      <td class="${profitCls}" style="font-weight:700;white-space:nowrap">${(item.profit||0)>=0?'+':''}${yen(item.profit)}</td>
-      <td style="font-size:11px;white-space:nowrap">${esc(item.schedule||'-')}</td>
-      <td><span class="badge ${diffCls}">${esc(item.difficulty||'-')}</span></td>
-      <td style="font-size:11px;min-width:120px">${esc(item.applyMethod||'-')}</td>
-      <td style="font-size:11px;line-height:1.5;min-width:180px;max-width:240px">${esc(item.reason||'-')}</td>
+      <td class="${profitCls}" style="font-weight:700;white-space:nowrap;font-size:14px">${(item.profit||0)>=0?'+':''}${yen(item.profit)}</td>
+      <td style="font-size:11px;min-width:100px">
+        <div>${esc(item.schedule||'-')}</div>
+        <div style="color:var(--text-d);font-size:10px;margin-top:2px">${esc(item.applyMethod||'')}</div>
+      </td>
+      <td style="font-size:11px;min-width:160px;line-height:1.5;max-width:220px">
+        <div style="color:var(--text)">${esc(item.reason||'-')}</div>
+      </td>
       <td style="white-space:nowrap">
         <div style="display:flex;flex-direction:column;gap:4px">
-          <a href="${esc(item.url||'#')}" target="_blank" class="btn btn-xs btn-gold">📝 応募ページ</a>
-          <button class="btn btn-xs btn-blue" onclick="addToApps(${idx})">＋ 応募管理に追加</button>
+          ${item.url ? `<a href="${esc(item.url)}" target="_blank" class="btn btn-xs btn-gold">📝 ${isFlip?'仕入れ先':'応募ページ'}</a>` : ''}
+          <button class="btn btn-xs btn-blue" onclick="addToApps(${idx})">＋ 管理追加</button>
         </div>
       </td>
     `;
