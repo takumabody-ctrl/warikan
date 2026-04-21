@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PREMIER VALUE — 転売リサーチ＆応募管理</title>
+<style>
+:root{
+  --bg:#0a0b0f;--panel:#12151e;--panel2:#1a1f2e;--border:#252836;
+  --gold:#d4a843;--gold-h:#e8c060;--gold-dim:#7a6020;
+  --text:#c0c4cc;--text-b:#fff;--text-d:#565c72;
+  --red:#e05252;--green:#4caf50;--blue:#4a9eff;
+  --purple:#9c6fd4;--teal:#26c6da;--orange:#ff9800;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+a{color:var(--gold);text-decoration:none}
+a:hover{color:var(--gold-h)}
+
+/* ── Layout ── */
+.container{max-width:1400px;margin:0 auto;padding:16px}
+
+/* ── Header ── */
+header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--gold);padding-bottom:12px;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.hd-left h1{color:var(--gold);font-size:22px;font-weight:300;letter-spacing:3px;margin-bottom:2px}
+.hd-left p{font-size:11px;color:var(--text-d)}
+.hd-stats{display:flex;gap:12px;flex-wrap:wrap}
+.hd-stat{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 14px;text-align:center}
+.hd-stat .sv{font-size:18px;font-weight:700;color:var(--gold)}
+.hd-stat .sl{font-size:10px;color:var(--text-d);margin-top:1px}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border)}
+.tab{padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;color:var(--text-d);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;background:none;border-top:none;border-left:none;border-right:none;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+.tab-badge{background:var(--gold);color:#000;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:4px}
+
+.pane{display:none}.pane.active{display:block}
+
+/* ── Panel ── */
+.panel{background:var(--panel);border-radius:10px;padding:18px;margin-bottom:16px;border:1px solid var(--border)}
+.panel-title{color:var(--text-b);font-size:14px;font-weight:600;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+
+/* ── Forms ── */
+.row{display:flex;gap:14px;flex-wrap:wrap}
+.col{flex:1;min-width:180px}
+.form-group{margin-bottom:12px}
+label{display:block;font-size:11px;color:var(--text-d);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+input[type=text],input[type=password],input[type=number],select,textarea{
+  width:100%;padding:9px 11px;background:#0d0f17;border:1px solid var(--border);
+  color:var(--text-b);border-radius:6px;font-size:13px;transition:border-color .2s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold)}
+textarea{resize:vertical;min-height:60px}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;border:none;transition:all .2s;white-space:nowrap}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:#000}.btn-gold:hover:not(:disabled){background:var(--gold-h)}
+.btn-green{background:#1d6f42;color:#fff}.btn-green:hover{background:#218c53}
+.btn-gray{background:#2a2f3e;color:var(--text)}.btn-gray:hover{background:#333a4d}
+.btn-red{background:#4a1a1a;color:var(--red)}.btn-red:hover{background:#5a2020}
+.btn-blue{background:#1a3055;color:var(--blue)}.btn-blue:hover{background:#1e3a6a}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:4px}
+.btn-xs{padding:3px 7px;font-size:11px;border-radius:4px}
+.btn-full{width:100%}
+.btn-save{background:#2a2f3e;color:var(--gold);border:1px solid var(--gold-dim);padding:7px 14px;border-radius:5px;font-size:12px;cursor:pointer}
+
+/* ── Category grid ── */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;margin-top:6px}
+.cat-item{display:flex;align-items:center;gap:8px;padding:7px 10px;background:#0d0f17;border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .18s;font-size:12px;font-weight:600;color:var(--text)}
+.cat-item input{display:none}
+.cat-item.checked{border-color:var(--gold);background:#1a1700;color:var(--gold)}
+
+/* ── Progress ── */
+.phases{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.phase-chip{padding:6px 12px;border-radius:16px;font-size:12px;font-weight:600;background:var(--panel2);border:1px solid var(--border);color:var(--text-d);display:flex;align-items:center;gap:6px;transition:all .3s}
+.phase-chip.active{border-color:var(--gold);color:var(--gold);background:#1a1700}
+.phase-chip.done{border-color:var(--green);color:var(--green);background:#0a1f0a}
+.progress-bar{height:4px;background:var(--border);border-radius:2px;margin-bottom:10px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--gold-dim),var(--gold));border-radius:2px;transition:width .5s ease;width:0}
+.status-text{font-size:12px;color:var(--gold);text-align:center}
+
+/* ── Results ── */
+.results-ctrl{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.results-ctrl .label{font-size:12px;color:var(--text-d)}
+.result-count{font-size:12px;color:var(--text-d);margin-bottom:8px}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#0d0f17;color:var(--gold);font-weight:600;padding:10px 8px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:1}
+td{padding:9px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover td{background:rgba(255,255,255,.02)}
+.tbl-wrap{overflow-x:auto}
+
+/* ── Badges ── */
+.badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;white-space:nowrap}
+.badge-high{background:var(--red);color:#fff}
+.badge-mid{background:var(--gold-dim);color:var(--gold)}
+.badge-diff-low{background:#0a2a0a;color:var(--green);border:1px solid var(--green)}
+.badge-diff-mid{background:#2a2000;color:var(--gold);border:1px solid var(--gold-dim)}
+.badge-diff-high{background:#2a0a0a;color:var(--red);border:1px solid var(--red)}
+
+/* ── Status badges ── */
+.st{display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700}
+.st-pending{background:#1a1f2e;color:var(--text-d);border:1px solid var(--border)}
+.st-applied{background:#0d1f3a;color:var(--blue);border:1px solid var(--blue)}
+.st-won{background:#0a2a0a;color:var(--green);border:1px solid var(--green)}
+.st-lost{background:#2a0a0a;color:#a33;border:1px solid #a33}
+.st-paid{background:#1a0f2e;color:var(--purple);border:1px solid var(--purple)}
+.st-received{background:#0a2228;color:var(--teal);border:1px solid var(--teal)}
+.st-listed{background:#2a1800;color:var(--orange);border:1px solid var(--orange)}
+.st-sold{background:#2a1e00;color:var(--gold);border:1px solid var(--gold)}
+
+/* ── Application cards ── */
+.app-stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.stat-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
+.stat-val{font-size:22px;font-weight:800;margin-bottom:2px}
+.stat-lbl{font-size:10px;color:var(--text-d)}
+
+.filter-row{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.filter-btn{padding:5px 12px;border-radius:14px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--panel2);color:var(--text-d);transition:all .18s}
+.filter-btn.active{border-color:var(--gold);color:var(--gold);background:#1a1700}
+
+.app-card{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;transition:border-color .2s}
+.app-card:hover{border-color:var(--gold-dim)}
+.app-card-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.app-card-info{flex:1;min-width:200px}
+.app-card-name{font-size:14px;font-weight:700;color:var(--text-b);margin-bottom:3px}
+.app-card-cat{font-size:11px;color:var(--text-d);margin-bottom:6px}
+.app-card-nums{display:flex;gap:12px;flex-wrap:wrap}
+.app-num{text-align:center}
+.app-num .av{font-size:15px;font-weight:700}
+.app-num .al{font-size:9px;color:var(--text-d);margin-top:1px}
+.app-card-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start}
+.app-meta{font-size:11px;color:var(--text-d);line-height:1.8;border-top:1px solid var(--border);padding-top:8px;margin-top:4px}
+
+/* ── Profit tab ── */
+.profit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+.profit-card{background:var(--panel);border-radius:8px;padding:14px;text-align:center;border:1px solid var(--border)}
+.profit-val{font-size:20px;font-weight:800;margin-bottom:3px}
+.profit-lbl{font-size:10px;color:var(--text-d)}
+
+/* ── Export ── */
+.export-row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+
+/* ── Modal ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px;width:90%;max-width:480px;max-height:90vh;overflow-y:auto}
+.modal-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modal-title{font-size:16px;font-weight:700;color:var(--text-b)}
+.modal-close{background:none;border:none;color:var(--text-d);font-size:18px;cursor:pointer}
+
+/* ── Hint / misc ── */
+.hint{font-size:10px;color:var(--text-d);margin-top:8px;line-height:1.6}
+.profit-pos{color:var(--green)}.profit-neg{color:var(--red)}.profit-zero{color:var(--text-d)}
+.empty{text-align:center;padding:40px;color:var(--text-d);font-size:14px}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .hd-stats{display:none}
+  .tabs .tab{padding:8px 12px;font-size:12px}
+  table,thead,tbody,th,td,tr{display:block}
+  thead tr{display:none}
+  tr{margin-bottom:14px;background:var(--panel2);border-radius:8px;padding:10px;border:1px solid var(--border)}
+  td{border:none;border-bottom:1px solid var(--border);padding:8px 8px 8px 42%;position:relative;font-size:12px;text-align:right}
+  td:last-child{border-bottom:none}
+  td:before{position:absolute;top:8px;left:8px;width:38%;text-align:left;font-size:10px;font-weight:700;color:var(--gold)}
+  td:nth-of-type(1):before{content:"需要"}
+  td:nth-of-type(2):before{content:"カテゴリ"}
+  td:nth-of-type(3):before{content:"商品名"}
+  td:nth-of-type(4):before{content:"仕入"}
+  td:nth-of-type(5):before{content:"メルカリ相場"}
+  td:nth-of-type(6):before{content:"推定利益"}
+  td:nth-of-type(7):before{content:"応募期間"}
+  td:nth-of-type(8):before{content:"難易度"}
+  td:nth-of-type(9):before{content:"応募方法"}
+  td:nth-of-type(10):before{content:"AI分析"}
+  td:nth-of-type(11):before{content:"操作"}
+  td:nth-of-type(3),td:nth-of-type(10){text-align:left;padding-left:8px;padding-top:24px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<header>
+  <div class="hd-left">
+    <h1>PREMIER VALUE</h1>
+    <p>AI-Powered Resell Research &amp; Application Manager</p>
+  </div>
+  <div class="hd-stats" id="hdStats"></div>
+</header>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab active" onclick="showTab('search')" id="tab-btn-search">🔍 AI検索</button>
+  <button class="tab" onclick="showTab('apps')" id="tab-btn-apps">📋 応募管理<span class="tab-badge" id="apps-badge">0</span></button>
+  <button class="tab" onclick="showTab('profit')" id="tab-btn-profit">💰 収支管理</button>
+</div>
+
+<!-- ══ SEARCH PANE ══ -->
+<div class="pane active" id="pane-search">
+  <div class="row">
+    <!-- API Settings -->
+    <div class="panel col" style="flex:0.3;min-width:220px">
+      <div class="panel-title">⚙️ SETTINGS</div>
+      <div class="form-group">
+        <label>Gemini API Key</label>
+        <input type="password" id="apiKey" placeholder="AIzaSy...">
+      </div>
+      <div class="form-group">
+        <label>送料見積（円）</label>
+        <input type="number" id="shippingCost" value="700" min="0" max="3000">
+      </div>
+      <button class="btn-save btn-full" onclick="saveSettings()">💾 設定を保存</button>
+      <p class="hint">※APIキーはブラウザ内(localStorage)のみ保存<br>※送料はメルカリ利益計算に使用</p>
+    </div>
+
+    <!-- Hunting Parameters -->
+    <div class="panel col" style="flex:0.7">
+      <div class="panel-title">🎯 HUNTING PARAMETERS</div>
+      <div class="row">
+        <div class="col form-group">
+          <label>検索対象期間</label>
+          <select id="timeRange">
+            <option value="3日以内">3日以内</option>
+            <option value="1週間以内" selected>1週間以内</option>
+            <option value="2週間以内">2週間以内</option>
+            <option value="1か月以内">1か月以内</option>
+            <option value="2か月以内">2か月以内</option>
+          </select>
+        </div>
+        <div class="col form-group">
+          <label>仕入上限</label>
+          <select id="maxPrice">
+            <option value="10000">¥10,000</option>
+            <option value="30000" selected>¥30,000</option>
+            <option value="50000">¥50,000</option>
+            <option value="100000">¥100,000</option>
+          </select>
+        </div>
+        <div class="col form-group">
+          <label>抽出件数（合計）</label>
+          <input type="number" id="targetCount" value="20" min="5" max="40">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>検索カテゴリ（クリックで選択/解除）</label>
+        <div class="cat-grid" id="catGrid"></div>
+      </div>
+      <button class="btn btn-gold btn-full" id="searchBtn" onclick="runSearch()">
+        🚀 多段階AIリサーチ起動
+      </button>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div class="panel" id="progressPanel" style="display:none">
+    <div class="phases" id="phaseChips"></div>
+    <div class="progress-bar"><div class="progress-fill" id="progFill"></div></div>
+    <p class="status-text" id="statusText">準備中...</p>
+  </div>
+
+  <!-- Results -->
+  <div class="panel" id="resultsPanel" style="display:none">
+    <div class="panel-title">📊 EXTRACTION RESULTS</div>
+    <div class="results-ctrl">
+      <span class="label">並び替え：</span>
+      <select id="sortBy" onchange="applySort()" style="width:auto;padding:5px 8px;font-size:12px">
+        <option value="demand">需要順</option>
+        <option value="profit">推定利益順</option>
+        <option value="schedule">応募期限順</option>
+        <option value="cost">仕入額順（安い順）</option>
+      </select>
+      <span class="label">カテゴリ：</span>
+      <select id="filterCat" onchange="applyFilter()" style="width:auto;padding:5px 8px;font-size:12px">
+        <option value="">全て</option>
+      </select>
+    </div>
+    <div id="resultCount" class="result-count"></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>需要</th>
+            <th>カテゴリ</th>
+            <th>商品名 / 抽選名</th>
+            <th>仕入</th>
+            <th>メルカリ相場</th>
+            <th>推定利益</th>
+            <th>応募期間</th>
+            <th>難易度</th>
+            <th>応募方法</th>
+            <th>AI分析</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="resultList"></tbody>
+      </table>
+    </div>
+    <div class="export-row">
+      <button class="btn btn-green btn-sm" onclick="copyTSV()">📋 スプレッドシート貼付用コピー</button>
+      <button class="btn btn-gray btn-sm" onclick="exportCSV()">📥 CSV保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APPLICATIONS PANE ══ -->
+<div class="pane" id="pane-apps">
+  <div class="app-stats-grid" id="appStatsGrid"></div>
+  <div class="panel">
+    <div class="panel-title">📋 応募管理リスト
+      <button class="btn btn-gray btn-xs" style="margin-left:auto" onclick="openAddManual()">＋ 手動追加</button>
+    </div>
+    <div class="filter-row" id="filterRow"></div>
+    <div id="appList"></div>
+  </div>
+</div>
+
+<!-- ══ PROFIT PANE ══ -->
+<div class="pane" id="pane-profit">
+  <div class="profit-grid" id="profitGrid"></div>
+  <div class="panel">
+    <div class="panel-title">📈 売却済み履歴</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>商品名</th>
+            <th>カテゴリ</th>
+            <th>仕入</th>
+            <th>売却価格</th>
+            <th>実利益</th>
+            <th>売却日</th>
+          </tr>
+        </thead>
+        <tbody id="profitList"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <span class="modal-title" id="modalTitle">編集</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════
+//  CONSTANTS & STATE
+// ═══════════════════════════════════
+const PV_KEY   = 'premierValue_GeminiKey';
+const PV_SHIP  = 'premierValue_shipping';
+const PV_APPS  = 'pv_applications_v1';
+const MERCARI_FEE = 0.10;
+
+const CATEGORIES = [
+  {id:'tcg',   label:'🃏 TCG・カードゲーム', phase:0},
+  {id:'snk',   label:'👟 スニーカー',         phase:1},
+  {id:'brand', label:'🏷️ ブランドコラボ',    phase:1},
+  {id:'anime', label:'🎌 アニメ・グッズ',     phase:2},
+  {id:'game',  label:'🎮 ゲーム・ゲーム機',  phase:2},
+  {id:'fig',   label:'🗿 フィギュア',         phase:2},
+  {id:'toy',   label:'🧸 玩具・コレクター',  phase:2},
+  {id:'app',   label:'👕 アパレル',           phase:1},
+];
+
+const STATUS_CONFIG = {
+  pending:  {label:'📝 応募予定',   cls:'st-pending',  next:['applied']},
+  applied:  {label:'✉️ 応募済み',  cls:'st-applied',  next:['won','lost']},
+  won:      {label:'🎉 当選！',     cls:'st-won',       next:['paid']},
+  lost:     {label:'😢 落選',       cls:'st-lost',      next:[]},
+  paid:     {label:'💳 支払済み',  cls:'st-paid',      next:['received']},
+  received: {label:'📦 受取済み',  cls:'st-received',  next:['listed']},
+  listed:   {label:'🏷️ 出品中',   cls:'st-listed',    next:['sold']},
+  sold:     {label:'✅ 売却済み',   cls:'st-sold',      next:[]},
+};
+
+let globalData   = [];
+let filteredData = [];
+let currentFilter = 'all';
+let applications = [];
+
+// ═══════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function yen(n){ return '¥'+(Math.round(n)||0).toLocaleString('ja-JP'); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function parseNum(v){ return Number(String(v).replace(/[^0-9.-]/g,''))||0; }
+function today(){ return new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'}); }
+function nowISO(){ return new Date().toISOString(); }
+
+function calcProfit(mercari, cost){
+  const ship = parseInt(document.getElementById('shippingCost').value)||700;
+  return Math.round(mercari*(1-MERCARI_FEE) - cost - ship);
+}
+
+function mercariUrl(name){ return 'https://www.mercari.com/jp/search/?keyword='+encodeURIComponent(name)+'&status=on_sale&sort=created_time&order=desc'; }
+function yahooUrl(name){ return 'https://auctions.yahoo.co.jp/search/search?p='+encodeURIComponent(name)+'&va='+encodeURIComponent(name)+'&s1=end&o1=d'; }
+
+// ═══════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════
+function saveSettings(){
+  const key = document.getElementById('apiKey').value.trim();
+  const ship = document.getElementById('shippingCost').value;
+  if(key) localStorage.setItem(PV_KEY, key);
+  localStorage.setItem(PV_SHIP, ship);
+  alert('設定を保存しました。');
+}
+function loadSettings(){
+  const key  = localStorage.getItem(PV_KEY);
+  const ship = localStorage.getItem(PV_SHIP);
+  if(key)  document.getElementById('apiKey').value = key;
+  if(ship) document.getElementById('shippingCost').value = ship;
+}
+
+// ═══════════════════════════════════
+//  TABS
+// ═══════════════════════════════════
+function showTab(name){
+  ['search','apps','profit'].forEach(n=>{
+    document.getElementById('pane-'+n).classList.toggle('active', n===name);
+    document.getElementById('tab-btn-'+n).classList.toggle('active', n===name);
+  });
+  if(name==='apps')   renderApps();
+  if(name==='profit') renderProfit();
+  updateHeader();
+}
+
+// ═══════════════════════════════════
+//  CATEGORY GRID
+// ═══════════════════════════════════
+function initCatGrid(){
+  const g = document.getElementById('catGrid');
+  g.innerHTML = CATEGORIES.map(c=>`
+    <div class="cat-item checked" id="cat-${c.id}" onclick="togCat(this,'${c.id}')">
+      ${c.label}
+    </div>`).join('');
+}
+function togCat(el){ el.classList.toggle('checked'); }
+function getSelectedCats(){ return CATEGORIES.filter(c=>document.getElementById('cat-'+c.id).classList.contains('checked')); }
+
+// ═══════════════════════════════════
+//  MULTI-PHASE SEARCH
+// ═══════════════════════════════════
+const PHASE_DEFS = [
+  {
+    id:'phase0', label:'🃏 TCG・カードゲーム',
+    catIds:['tcg'],
+    focus:`ポケモンカード（ポケカ）拡張パック・スペシャルセット、ワンピースカード限定セット、遊戯王カード限定版、デュエルマスターズ限定、バスケットボールカード（NBA）、野球カード（BBM）、スポーツカード全般のネット抽選・予約`
+  },
+  {
+    id:'phase1', label:'👟 スニーカー・ブランド・アパレル',
+    catIds:['snk','brand','app'],
+    focus:`Nike SNKRS APP抽選、New Balance限定モデル、adidas公式抽選、ASICS・オニツカタイガー限定、Supreme オンライン抽選、KAWS限定グッズ、Palace公式抽選、Off-Whiteコラボ、sacaiコラボ、ハイブランドコラボスニーカー・アパレルのネット抽選販売`
+  },
+  {
+    id:'phase2', label:'🎮 アニメ・ゲーム・フィギュア・玩具',
+    catIds:['anime','game','fig','toy'],
+    focus:`アニメ公式グッズ抽選（ジャンプショップ・BANDAI・東映・サンリオ等）、限定フィギュア（グッドスマイルカンパニー・コトブキヤ・MAX Factory）、Nintendo限定同梱版・PlayStation限定版のネット抽選、BEARBRICK公式抽選、LEGO限定セット、一番くじ非売品・限定品、ガンプラプレバン限定`
+  },
+];
+
+function buildPrompt(phase, selectedCatIds, count, timeRange, maxPrice){
+  const dateStr = today();
+  return `
+あなたは転売専門マーケットアナリストです。本日は${dateStr}です。
+Googleを使って実際にウェブを検索し、以下の条件を【全て】満たす商品を徹底リサーチして${count}件リストアップしてください。
+
+━━ 今回の検索カテゴリ ━━
+${phase.focus}
+
+━━ 必須条件（全て満たすこと） ━━
+① 【完全ネット完結】スマホ・PCのみで応募完結。店舗訪問・並び不要。応募→当選→自宅配送の流れが確立されていること
+② 【公式サイト・正規店のみ】ブランド公式サイト・正規販売店の抽選のみ。転売サイト・二次流通は除外
+③ 【応募時期】${dateStr}から${timeRange}の間に応募受付中または開始予定
+④ 【仕入上限】定価${maxPrice}円以内
+⑤ 【実売実績確認】メルカリ・ラクマ・ヤフオクで定価の1.5倍以上で実際に落札・売買されている実績をGoogle検索で確認すること
+⑥ 【個人出品可能な有形物】メルカリで普通に出品できる物。冷蔵不要・資格不要・転売禁止記載なし
+
+━━ 絶対除外（これに該当するものはリストに絶対含めない） ━━
+✗ チケット全般（ライブ・スポーツ・映画・交通・宿泊・入場券）
+✗ 医薬品・健康食品・サプリメント
+✗ デジタルコンテンツ・ゲームコード・NFT・電子書籍
+✗ 大型家電・家具（個人配送が困難なもの）
+✗ 食品・飲料（賞味期限のあるもの）
+✗ 転売禁止と明記された商品
+
+━━ 各商品について必ずGoogleで調査して記載 ━━
+1. 正式商品名・抽選名
+2. 応募ページの直URL（公式サイトの直リンク必須）
+3. 応募方法・サイト名・会員登録要否
+4. 定価（仕入価格）
+5. メルカリ・フリマでの現在の平均相場価格（Google検索で実際の取引価格を確認）
+6. 推定利益（メルカリ相場×0.9 - 定価 - 送料500円）
+7. 応募期間・当選発表日・発送予定日
+8. プレ値になる具体的理由（販売数量・レア度・コラボ背景・ファン層など）
+9. 応募難易度（低:倍率低め/中:普通/高:激戦）
+
+━━ 出力形式 ━━
+JSON配列のみ出力。Markdownコードブロック不使用。'['で始まり']'で終わること。
+
+[
+  {
+    "product": "商品の正式名称",
+    "category": "カテゴリ（TCG/スニーカー/フィギュア等）",
+    "cost": 定価（整数のみ）,
+    "mercariPrice": メルカリ相場価格（整数のみ）,
+    "profit": 推定利益（整数のみ）,
+    "schedule": "YYYY/MM/DD 応募開始〜MM/DD締切",
+    "applyMethod": "応募方法（例: 公式サイト会員登録必要 / Nike SNKRS APPから応募）",
+    "difficulty": "低または中または高",
+    "reason": "プレ値理由を具体的に（販売数・ファン層・コラボ背景等）",
+    "demand": "高または中",
+    "url": "応募ページの直URL（公式サイトのみ）"
+  }
+]`;
+}
+
+async function callGemini(apiKey, prompt){
+  const models = ['gemini-2.5-flash','gemini-2.0-flash','gemini-1.5-pro','gemini-1.5-flash'];
+  const payload = {
+    contents:[{role:'user',parts:[{text:prompt}]}],
+    tools:[{googleSearch:{}}]
+  };
+  for(const model of models){
+    try{
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const res = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(res.ok){
+        const data = await res.json();
+        return data.candidates[0].content.parts[0].text;
+      }
+    }catch(e){ console.warn('model failed',model,e); }
+  }
+  throw new Error('全モデルでの接続に失敗しました');
+}
+
+function parseJSON(text){
+  let t = text.replace(/```json/gi,'').replace(/```/g,'').trim();
+  const s = t.indexOf('['), e = t.lastIndexOf(']');
+  if(s!==-1&&e!==-1) t = t.substring(s,e+1);
+  return JSON.parse(t);
+}
+
+async function runSearch(){
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if(!apiKey){ alert('Gemini API Keyを設定してください。'); return; }
+
+  const timeRange  = document.getElementById('timeRange').value;
+  const maxPrice   = document.getElementById('maxPrice').value;
+  const totalCount = parseInt(document.getElementById('targetCount').value)||20;
+  const selectedCats = getSelectedCats();
+  if(!selectedCats.length){ alert('カテゴリを1つ以上選択してください。'); return; }
+
+  // Determine which phases to run
+  const phaseSet = new Set(selectedCats.map(c=>c.phase));
+  const phasesToRun = PHASE_DEFS.filter((_,i)=>phaseSet.has(i));
+
+  document.getElementById('searchBtn').disabled = true;
+  document.getElementById('progressPanel').style.display = 'block';
+  document.getElementById('resultsPanel').style.display = 'none';
+
+  // Build phase chips
+  const chips = document.getElementById('phaseChips');
+  chips.innerHTML = phasesToRun.map((p,i)=>`<div class="phase-chip" id="chip-${i}">${p.label}</div>`).join('');
+  setProgress(0);
+
+  let allResults = [];
+
+  for(let i=0;i<phasesToRun.length;i++){
+    const phase = phasesToRun[i];
+    document.getElementById(`chip-${i}`).classList.add('active');
+    document.getElementById('statusText').textContent = `${phase.label}をリサーチ中... (${i+1}/${phasesToRun.length})`;
+    setProgress(Math.round((i/phasesToRun.length)*90));
+
+    const perCount = Math.ceil(totalCount / phasesToRun.length * 1.3);
+    const prompt = buildPrompt(phase, selectedCats.map(c=>c.id), perCount, timeRange, maxPrice);
+
+    try{
+      const text = await callGemini(apiKey, prompt);
+      const items = parseJSON(text);
+      if(Array.isArray(items)){
+        // Recalculate profit in JS for consistency
+        items.forEach(item=>{
+          item.cost = parseNum(item.cost);
+          item.mercariPrice = parseNum(item.mercariPrice);
+          item.profit = calcProfit(item.mercariPrice, item.cost);
+        });
+        allResults = allResults.concat(items);
+      }
+    }catch(e){
+      console.warn(`Phase ${i} error:`, e);
+    }
+
+    document.getElementById(`chip-${i}`).classList.remove('active');
+    document.getElementById(`chip-${i}`).classList.add('done');
+  }
+
+  setProgress(100);
+  document.getElementById('statusText').textContent = `完了！ ${allResults.length}件取得 → 重複除去・ソート中...`;
+
+  // Deduplicate
+  const seen = new Set();
+  const unique = allResults.filter(item=>{
+    const key = (item.product||'').replace(/\s/g,'').toLowerCase().slice(0,20);
+    if(seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+
+  // Sort by demand then profit
+  const demandScore = {'高':2,'中':1,'低':0};
+  unique.sort((a,b)=>((demandScore[b.demand]||0)-(demandScore[a.demand]||0))||((b.profit||0)-(a.profit||0)));
+
+  globalData = unique.slice(0, totalCount);
+  filteredData = [...globalData];
+
+  buildCategoryFilter();
+  renderTable(filteredData);
+
+  document.getElementById('progressPanel').style.display = 'none';
+  document.getElementById('resultsPanel').style.display = 'block';
+  document.getElementById('searchBtn').disabled = false;
+}
+
+function setProgress(pct){
+  document.getElementById('progFill').style.width = pct+'%';
+}
+
+// ═══════════════════════════════════
+//  RESULTS TABLE
+// ═══════════════════════════════════
+function buildCategoryFilter(){
+  const cats = [...new Set(globalData.map(d=>d.category).filter(Boolean))];
+  const sel = document.getElementById('filterCat');
+  sel.innerHTML = '<option value="">全カテゴリ</option>'+cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+}
+
+function applySort(){
+  const key = document.getElementById('sortBy').value;
+  const d = {'高':2,'中':1,'低':0};
+  filteredData.sort((a,b)=>{
+    if(key==='demand') return ((d[b.demand]||0)-(d[a.demand]||0))||((b.profit||0)-(a.profit||0));
+    if(key==='profit') return (b.profit||0)-(a.profit||0);
+    if(key==='cost')   return (a.cost||0)-(b.cost||0);
+    return 0;
+  });
+  renderTable(filteredData);
+}
+
+function applyFilter(){
+  const cat = document.getElementById('filterCat').value;
+  filteredData = cat ? globalData.filter(d=>(d.category||'')=== cat) : [...globalData];
+  applySort();
+}
+
+function renderTable(list){
+  document.getElementById('resultCount').textContent = `${list.length}件表示`;
+  const tbody = document.getElementById('resultList');
+  tbody.innerHTML = '';
+  list.forEach((item,idx)=>{
+    const badgeCls  = item.demand==='高' ? 'badge-high' : 'badge-mid';
+    const diffCls   = item.difficulty==='低' ? 'badge-diff-low' : item.difficulty==='高' ? 'badge-diff-high' : 'badge-diff-mid';
+    const profitCls = (item.profit||0)>0 ? 'profit-pos' : 'profit-neg';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="badge ${badgeCls}">#${idx+1} ${esc(item.demand||'高')}</span></td>
+      <td style="color:var(--text-d);font-size:11px">${esc(item.category||'-')}</td>
+      <td style="font-weight:700;color:var(--text-b);min-width:160px">${esc(item.product||'-')}</td>
+      <td style="color:#ffbaba;white-space:nowrap">${yen(item.cost)}</td>
+      <td style="white-space:nowrap">
+        ${yen(item.mercariPrice)}
+        <div style="display:flex;gap:4px;margin-top:4px">
+          <a href="${esc(mercariUrl(item.product))}" target="_blank" class="btn btn-xs btn-gray">メルカリ</a>
+          <a href="${esc(yahooUrl(item.product))}" target="_blank" class="btn btn-xs btn-gray">ヤフオク</a>
+        </div>
+      </td>
+      <td class="${profitCls}" style="font-weight:700;white-space:nowrap">${(item.profit||0)>=0?'+':''}${yen(item.profit)}</td>
+      <td style="font-size:11px;white-space:nowrap">${esc(item.schedule||'-')}</td>
+      <td><span class="badge ${diffCls}">${esc(item.difficulty||'-')}</span></td>
+      <td style="font-size:11px;min-width:120px">${esc(item.applyMethod||'-')}</td>
+      <td style="font-size:11px;line-height:1.5;min-width:180px;max-width:240px">${esc(item.reason||'-')}</td>
+      <td style="white-space:nowrap">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <a href="${esc(item.url||'#')}" target="_blank" class="btn btn-xs btn-gold">📝 応募ページ</a>
+          <button class="btn btn-xs btn-blue" onclick="addToApps(${idx})">＋ 応募管理に追加</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ═══════════════════════════════════
+//  APPLICATION TRACKER
+// ═══════════════════════════════════
+function loadApps(){
+  try{ applications = JSON.parse(localStorage.getItem(PV_APPS))||[]; }catch(e){ applications=[]; }
+}
+function saveApps(){
+  localStorage.setItem(PV_APPS, JSON.stringify(applications));
+  updateHeader();
+  document.getElementById('apps-badge').textContent = applications.filter(a=>!['lost','sold'].includes(a.status)).length;
+}
+
+function addToApps(idx){
+  const item = filteredData[idx];
+  if(!item) return;
+  if(applications.find(a=>a.product===item.product)){
+    if(!confirm(`「${item.product}」はすでに追加されています。再度追加しますか？`)) return;
+  }
+  applications.unshift({
+    id: uid(), addedAt: nowISO(),
+    product: item.product, category: item.category,
+    cost: item.cost, mercariPrice: item.mercariPrice,
+    estimatedProfit: item.profit,
+    url: item.url, schedule: item.schedule,
+    applyMethod: item.applyMethod, difficulty: item.difficulty,
+    reason: item.reason, demand: item.demand,
+    status:'pending',
+    appliedAt:null, wonAt:null, listedAt:null,
+    listedPrice:null, soldPrice:null, soldAt:null, actualProfit:null,
+    memo:''
+  });
+  saveApps();
+  alert(`「${item.product}」を応募管理に追加しました！`);
+}
+
+function openAddManual(){
+  document.getElementById('modalTitle').textContent = '＋ 手動追加';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group"><label>商品名</label><input type="text" id="m-product" placeholder="商品名・抽選名"></div>
+    <div class="form-group"><label>カテゴリ</label><input type="text" id="m-category" placeholder="TCG / スニーカー 等"></div>
+    <div class="row">
+      <div class="col form-group"><label>仕入価格（円）</label><input type="number" id="m-cost" value="0"></div>
+      <div class="col form-group"><label>メルカリ相場（円）</label><input type="number" id="m-mercari" value="0"></div>
+    </div>
+    <div class="form-group"><label>応募期間</label><input type="text" id="m-schedule" placeholder="2025/01/01 〜 01/15"></div>
+    <div class="form-group"><label>応募URL</label><input type="text" id="m-url" placeholder="https://..."></div>
+    <div class="form-group"><label>応募方法</label><input type="text" id="m-method" placeholder="公式サイト 会員登録必要 等"></div>
+    <div class="form-group"><label>メモ</label><textarea id="m-memo"></textarea></div>
+    <button class="btn btn-gold btn-full" onclick="doAddManual()">追加する</button>
+  `;
+  openModal();
+}
+
+function doAddManual(){
+  const product = document.getElementById('m-product').value.trim();
+  if(!product){ alert('商品名を入力してください'); return; }
+  const cost    = parseNum(document.getElementById('m-cost').value);
+  const mercari = parseNum(document.getElementById('m-mercari').value);
+  applications.unshift({
+    id:uid(), addedAt:nowISO(),
+    product, category:document.getElementById('m-category').value,
+    cost, mercariPrice:mercari, estimatedProfit:calcProfit(mercari,cost),
+    url:document.getElementById('m-url').value,
+    schedule:document.getElementById('m-schedule').value,
+    applyMethod:document.getElementById('m-method').value,
+    difficulty:'中', reason:'', demand:'中',
+    status:'pending', appliedAt:null, wonAt:null, listedAt:null,
+    listedPrice:null, soldPrice:null, soldAt:null, actualProfit:null,
+    memo:document.getElementById('m-memo').value
+  });
+  saveApps(); closeModal(); renderApps();
+}
+
+function renderApps(){
+  loadApps();
+  const statusCounts = {};
+  applications.forEach(a=>{ statusCounts[a.status]=(statusCounts[a.status]||0)+1; });
+
+  // Stats grid
+  const active   = applications.filter(a=>!['lost','sold'].includes(a.status)).length;
+  const won      = applications.filter(a=>['won','paid','received','listed','sold'].includes(a.status)).length;
+  const sold     = applications.filter(a=>a.status==='sold').length;
+  const totalPL  = applications.filter(a=>a.status==='sold'&&a.actualProfit!=null).reduce((s,a)=>s+a.actualProfit,0);
+  const winRate  = applications.length ? Math.round((won/applications.length)*100) : 0;
+
+  document.getElementById('appStatsGrid').innerHTML = `
+    <div class="stat-card"><div class="stat-val" style="color:var(--blue)">${active}</div><div class="stat-lbl">進行中</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--green)">${won}</div><div class="stat-lbl">当選累計</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--gold)">${winRate}%</div><div class="stat-lbl">当選率</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--gold)">${sold}</div><div class="stat-lbl">売却済み</div></div>
+    <div class="stat-card"><div class="stat-val ${totalPL>=0?'profit-pos':'profit-neg'}">${totalPL>=0?'+':''}${yen(totalPL)}</div><div class="stat-lbl">累計実利益</div></div>
+    <div class="stat-card"><div class="stat-val">${applications.length}</div><div class="stat-lbl">総応募数</div></div>
+  `;
+
+  // Filter buttons
+  const filters = [{id:'all',label:'全て'},{id:'pending',label:'応募予定'},{id:'applied',label:'応募済み'},
+    {id:'won',label:'当選'},{id:'lost',label:'落選'},{id:'paid',label:'支払済み'},
+    {id:'received',label:'受取済み'},{id:'listed',label:'出品中'},{id:'sold',label:'売却済み'}];
+  document.getElementById('filterRow').innerHTML = filters.map(f=>
+    `<button class="filter-btn${currentFilter===f.id?' active':''}" onclick="setAppFilter('${f.id}')">${f.label}${f.id!=='all'&&statusCounts[f.id]?` (${statusCounts[f.id]})`:''}  </button>`
+  ).join('');
+
+  // List
+  let list = currentFilter==='all' ? applications : applications.filter(a=>a.status===currentFilter);
+  const el = document.getElementById('appList');
+  if(!list.length){ el.innerHTML='<div class="empty">該当する応募データがありません</div>'; return; }
+
+  el.innerHTML = list.map(app=>{
+    const sc = STATUS_CONFIG[app.status]||STATUS_CONFIG.pending;
+    const profColor = (app.estimatedProfit||0)>=0?'var(--green)':'var(--red)';
+    return `
+      <div class="app-card" id="app-${app.id}">
+        <div class="app-card-top">
+          <div class="app-card-info">
+            <div class="app-card-name">${esc(app.product)}</div>
+            <div class="app-card-cat">${esc(app.category||'-')} · ${esc(app.schedule||'-')}</div>
+            <div class="app-card-nums">
+              <div class="app-num"><div class="av" style="color:#ffbaba">${yen(app.cost)}</div><div class="al">仕入</div></div>
+              <div class="app-num"><div class="av">${yen(app.mercariPrice)}</div><div class="al">メルカリ相場</div></div>
+              <div class="app-num"><div class="av" style="color:${profColor}">${(app.estimatedProfit||0)>=0?'+':''}${yen(app.estimatedProfit)}</div><div class="al">推定利益</div></div>
+              ${app.status==='sold'&&app.actualProfit!=null?`<div class="app-num"><div class="av" style="color:var(--gold)">${app.actualProfit>=0?'+':''}${yen(app.actualProfit)}</div><div class="al">実利益</div></div>`:''}
+            </div>
+          </div>
+          <div class="app-card-actions">
+            <span class="st ${sc.cls}">${sc.label}</span>
+            <button class="btn btn-xs btn-gold" onclick="openStatusModal('${app.id}')">ステータス変更</button>
+            <a href="${esc(app.url||'#')}" target="_blank" class="btn btn-xs btn-gray">📝 応募</a>
+            <a href="${esc(mercariUrl(app.product))}" target="_blank" class="btn btn-xs btn-gray">メルカリ</a>
+            <button class="btn btn-xs btn-red" onclick="deleteApp('${app.id}')">削除</button>
+          </div>
+        </div>
+        ${app.memo?`<div class="app-meta">📝 ${esc(app.memo)}</div>`:''}
+        ${app.applyMethod?`<div class="app-meta">📋 応募方法: ${esc(app.applyMethod)}</div>`:''}
+      </div>
+    `;
+  }).join('');
+}
+
+function setAppFilter(f){ currentFilter=f; renderApps(); }
+
+function openStatusModal(id){
+  const app = applications.find(a=>a.id===id);
+  if(!app) return;
+  const sc = STATUS_CONFIG[app.status];
+  document.getElementById('modalTitle').textContent = esc(app.product);
+
+  const nextBtns = sc.next.map(s=>`
+    <button class="btn btn-gold btn-full" style="margin-bottom:8px" onclick="updateStatus('${id}','${s}')">
+      ${STATUS_CONFIG[s].label} に変更
+    </button>`).join('');
+
+  const soldFields = `
+    <div class="form-group" id="sold-fields" style="${app.status==='listed'?'':'display:none'}">
+      <label>実際の売却価格（円）</label>
+      <input type="number" id="sold-price" value="${app.listedPrice||app.mercariPrice||0}">
+    </div>`;
+
+  document.getElementById('modalBody').innerHTML = `
+    <div style="margin-bottom:14px">
+      <span>現在: </span><span class="st ${sc.cls}">${sc.label}</span>
+    </div>
+    ${nextBtns||'<p style="color:var(--text-d);font-size:13px">次のステータスはありません</p>'}
+    ${soldFields}
+    <div class="form-group" style="margin-top:12px">
+      <label>出品価格（メルカリ）</label>
+      <input type="number" id="listed-price" value="${app.listedPrice||app.mercariPrice||0}">
+    </div>
+    <div class="form-group">
+      <label>メモ</label>
+      <textarea id="app-memo">${esc(app.memo||'')}</textarea>
+    </div>
+    <button class="btn btn-gray btn-full" style="margin-top:4px" onclick="saveMemo('${id}')">メモを保存</button>
+  `;
+
+  // Show sold fields when listing
+  document.getElementById('listed-price')?.addEventListener('input', ()=>{
+    const sf = document.getElementById('sold-fields');
+    if(sf) sf.style.display='block';
+  });
+
+  openModal();
+}
+
+function updateStatus(id, newStatus){
+  const app = applications.find(a=>a.id===id);
+  if(!app) return;
+  app.status = newStatus;
+  if(newStatus==='applied') app.appliedAt = nowISO();
+  if(newStatus==='won')     app.wonAt = nowISO();
+  if(newStatus==='listed'){
+    app.listedAt = nowISO();
+    const lp = parseNum(document.getElementById('listed-price')?.value);
+    if(lp) app.listedPrice = lp;
+  }
+  if(newStatus==='sold'){
+    app.soldAt = nowISO();
+    const sp = parseNum(document.getElementById('sold-price')?.value||document.getElementById('listed-price')?.value||'0');
+    const lp = parseNum(document.getElementById('listed-price')?.value||'0');
+    app.soldPrice = sp||lp||app.mercariPrice;
+    const ship = parseInt(document.getElementById('shippingCost')?.value)||700;
+    app.actualProfit = Math.round(app.soldPrice*(1-MERCARI_FEE) - app.cost - ship);
+  }
+  const memo = document.getElementById('app-memo')?.value;
+  if(memo!==undefined) app.memo = memo;
+  saveApps(); closeModal(); renderApps();
+}
+
+function saveMemo(id){
+  const app = applications.find(a=>a.id===id);
+  if(!app) return;
+  app.memo = document.getElementById('app-memo')?.value||'';
+  const lp = parseNum(document.getElementById('listed-price')?.value);
+  if(lp) app.listedPrice = lp;
+  saveApps(); closeModal(); renderApps();
+  alert('保存しました');
+}
+
+function deleteApp(id){
+  if(!confirm('このエントリを削除しますか？')) return;
+  applications = applications.filter(a=>a.id!==id);
+  saveApps(); renderApps();
+}
+
+// ═══════════════════════════════════
+//  PROFIT TRACKER
+// ═══════════════════════════════════
+function renderProfit(){
+  loadApps();
+  const sold = applications.filter(a=>a.status==='sold'&&a.actualProfit!=null);
+  const totalProfit = sold.reduce((s,a)=>s+a.actualProfit,0);
+  const totalCost   = sold.reduce((s,a)=>s+a.cost,0);
+  const avgProfit   = sold.length ? Math.round(totalProfit/sold.length) : 0;
+  const roi         = totalCost>0 ? Math.round((totalProfit/totalCost)*100) : 0;
+  const bestItem    = sold.reduce((b,a)=>a.actualProfit>(b?.actualProfit||0)?a:b, null);
+
+  document.getElementById('profitGrid').innerHTML = `
+    <div class="profit-card"><div class="profit-val ${totalProfit>=0?'profit-pos':'profit-neg'}">${totalProfit>=0?'+':''}${yen(totalProfit)}</div><div class="profit-lbl">累計実利益</div></div>
+    <div class="profit-card"><div class="profit-val" style="color:var(--gold)">${sold.length}</div><div class="profit-lbl">売却件数</div></div>
+    <div class="profit-card"><div class="profit-val ${avgProfit>=0?'profit-pos':'profit-neg'}">${avgProfit>=0?'+':''}${yen(avgProfit)}</div><div class="profit-lbl">平均利益/件</div></div>
+    <div class="profit-card"><div class="profit-val" style="color:var(--teal)">${roi}%</div><div class="profit-lbl">ROI（投資回収率）</div></div>
+    <div class="profit-card"><div class="profit-val" style="color:var(--text-b);font-size:13px">${bestItem?esc(bestItem.product.slice(0,14)):'─'}</div><div class="profit-lbl">最高利益商品</div></div>
+    <div class="profit-card"><div class="profit-val" style="color:var(--blue)">${yen(totalCost)}</div><div class="profit-lbl">総仕入額</div></div>
+  `;
+
+  const tbody = document.getElementById('profitList');
+  if(!sold.length){ tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-d)">売却済みデータがありません</td></tr>'; return; }
+
+  tbody.innerHTML = sold.sort((a,b)=>new Date(b.soldAt)-new Date(a.soldAt)).map(a=>`
+    <tr>
+      <td style="font-weight:700;color:var(--text-b)">${esc(a.product)}</td>
+      <td style="color:var(--text-d);font-size:11px">${esc(a.category||'-')}</td>
+      <td style="color:#ffbaba">${yen(a.cost)}</td>
+      <td>${yen(a.soldPrice)}</td>
+      <td class="${a.actualProfit>=0?'profit-pos':'profit-neg'}" style="font-weight:700">${a.actualProfit>=0?'+':''}${yen(a.actualProfit)}</td>
+      <td style="font-size:11px;color:var(--text-d)">${a.soldAt?new Date(a.soldAt).toLocaleDateString('ja-JP'):'-'}</td>
+    </tr>
+  `).join('');
+}
+
+// ═══════════════════════════════════
+//  HEADER STATS
+// ═══════════════════════════════════
+function updateHeader(){
+  loadApps();
+  const active  = applications.filter(a=>!['lost','sold'].includes(a.status)).length;
+  const profit  = applications.filter(a=>a.status==='sold'&&a.actualProfit!=null).reduce((s,a)=>s+a.actualProfit,0);
+  document.getElementById('hdStats').innerHTML = `
+    <div class="hd-stat"><div class="sv" style="color:var(--blue)">${active}</div><div class="sl">進行中</div></div>
+    <div class="hd-stat"><div class="sv ${profit>=0?'':'profit-neg'}">${profit>=0?'+':''}${yen(profit)}</div><div class="sl">累計実利益</div></div>
+  `;
+  document.getElementById('apps-badge').textContent = active;
+}
+
+// ═══════════════════════════════════
+//  MODAL
+// ═══════════════════════════════════
+function openModal(){
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+document.getElementById('modalOverlay').addEventListener('click', e=>{
+  if(e.target===document.getElementById('modalOverlay')) closeModal();
+});
+
+// ═══════════════════════════════════
+//  EXPORT
+// ═══════════════════════════════════
+function copyTSV(){
+  if(!globalData.length){ alert('データがありません'); return; }
+  let tsv = '需要\tカテゴリ\t商品名\t仕入（円）\tメルカリ相場（円）\t推定利益（円）\t応募期間\t難易度\t応募方法\tAI分析\t応募URL\n';
+  globalData.forEach((d,i)=>{
+    const cl = s=>String(s||'').replace(/\t/g,' ').replace(/\n/g,' ');
+    tsv += `${i+1}位 ${d.demand||'高'}\t${cl(d.category)}\t${cl(d.product)}\t${d.cost||0}\t${d.mercariPrice||0}\t${d.profit||0}\t${cl(d.schedule)}\t${d.difficulty||'-'}\t${cl(d.applyMethod)}\t${cl(d.reason)}\t${cl(d.url)}\n`;
+  });
+  navigator.clipboard.writeText(tsv).then(()=>{
+    alert('コピーしました！\nGoogleスプレッドシートのA1セルを選択して Ctrl+V で貼り付けられます。');
+  }).catch(()=>alert('コピーに失敗しました。CSVダウンロードをご利用ください。'));
+}
+
+function exportCSV(){
+  if(!globalData.length){ alert('データがありません'); return; }
+  const header = '\uFEFF需要,カテゴリ,商品名,仕入（円）,メルカリ相場（円）,推定利益（円）,応募期間,難易度,応募方法,AI分析,応募URL\n';
+  const rows = globalData.map((d,i)=>{
+    const q = s=>'"'+String(s||'').replace(/"/g,'""')+'"';
+    return `${i+1},${q(d.category)},${q(d.product)},${d.cost||0},${d.mercariPrice||0},${d.profit||0},${q(d.schedule)},${q(d.difficulty)},${q(d.applyMethod)},${q(d.reason)},${q(d.url)}`;
+  }).join('\n');
+  const blob = new Blob([header+rows],{type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const now = new Date();
+  a.href=url; a.download=`PremierValue_${now.getMonth()+1}月${now.getDate()}日.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════════════
+//  INIT
+// ═══════════════════════════════════
+document.addEventListener('DOMContentLoaded', ()=>{
+  loadSettings();
+  initCatGrid();
+  loadApps();
+  updateHeader();
+});
+</script>
+</body>
+</html>
