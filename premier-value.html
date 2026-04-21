@@ -215,7 +215,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <input type="number" id="shippingCost" value="700" min="0" max="3000">
       </div>
       <button class="btn-save btn-full" onclick="saveSettings()">💾 設定を保存</button>
-      <p class="hint">※APIキーはブラウザ内(localStorage)のみ保存<br>※送料はメルカリ利益計算に使用</p>
+      <button class="btn btn-gray btn-sm btn-full" style="margin-top:6px" onclick="testApiKey()">🔌 API接続テスト</button>
+      <button class="btn btn-blue btn-sm btn-full" style="margin-top:4px" onclick="listModels()">🔍 利用可能モデルを確認</button>
+      <div id="apiTestResult" style="font-size:11px;margin-top:6px;line-height:1.6;word-break:break-all;max-height:200px;overflow-y:auto"></div>
+      <p class="hint">※APIキーはブラウザ内(localStorage)のみ保存<br>※送料はメルカリ利益計算に使用<br>※<a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--gold)">AI Studio</a>でAPIキーを取得してください</p>
     </div>
 
     <!-- Hunting Parameters -->
@@ -243,7 +246,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
         </div>
         <div class="col form-group">
           <label>抽出件数（合計）</label>
-          <input type="number" id="targetCount" value="20" min="5" max="40">
+          <select id="targetCount">
+            <option value="20">20件</option>
+            <option value="50">50件</option>
+            <option value="100" selected>100件</option>
+          </select>
         </div>
       </div>
       <div class="form-group">
@@ -261,6 +268,12 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="phases" id="phaseChips"></div>
     <div class="progress-bar"><div class="progress-fill" id="progFill"></div></div>
     <p class="status-text" id="statusText">準備中...</p>
+    <!-- Debug: raw AI response viewer -->
+    <div id="debugPanel" style="display:none;margin-top:12px">
+      <div style="font-size:11px;color:var(--gold);margin-bottom:4px">🔍 AIの生レスポンス（デバッグ用）</div>
+      <textarea id="debugRaw" style="width:100%;height:120px;font-size:10px;font-family:monospace;background:#0a0b0f;color:var(--text);border:1px solid var(--border);border-radius:4px;padding:6px" readonly></textarea>
+      <div style="font-size:11px;color:var(--text-d);margin-top:4px" id="debugStatus"></div>
+    </div>
   </div>
 
   <!-- Results -->
@@ -373,6 +386,7 @@ const CATEGORIES = [
   {id:'fig',   label:'🗿 フィギュア',         phase:2},
   {id:'toy',   label:'🧸 玩具・コレクター',  phase:2},
   {id:'app',   label:'👕 アパレル',           phase:1},
+  {id:'flip',  label:'⚡ 即転売（仕入れ転売）', phase:3},
 ];
 
 const STATUS_CONFIG = {
@@ -471,88 +485,241 @@ const PHASE_DEFS = [
     catIds:['anime','game','fig','toy'],
     focus:`アニメ公式グッズ抽選（ジャンプショップ・BANDAI・東映・サンリオ等）、限定フィギュア（グッドスマイルカンパニー・コトブキヤ・MAX Factory）、Nintendo限定同梱版・PlayStation限定版のネット抽選、BEARBRICK公式抽選、LEGO限定セット、一番くじ非売品・限定品、ガンプラプレバン限定`
   },
+  {
+    id:'phase3', label:'⚡ 即転売リサーチ',
+    catIds:['flip'],
+    focus:`メルカリ・ヤフオクで相場より安く出品されている商品を仕入れて即転売できる商品。古物商免許保持者が行う合法的な転売ビジネス。ポケカ・スニーカー・フィギュア・ブランド品・ゲームソフト・レコード・ヴィンテージ品など。プラットフォーム間の価格差を利用したアービトラージ。`
+  },
 ];
 
 function buildPrompt(phase, selectedCatIds, count, timeRange, maxPrice){
   const dateStr = today();
-  return `
-あなたは転売専門マーケットアナリストです。本日は${dateStr}です。
-Googleを使って実際にウェブを検索し、以下の条件を【全て】満たす商品を徹底リサーチして${count}件リストアップしてください。
 
-━━ 今回の検索カテゴリ ━━
+  if(phase.id === 'phase3'){
+    return `あなたは日本のフリマ・オークション市場に精通したリサーチアナリストです。本日は${dateStr}です。古物商免許を持つ転売業者向けのリサーチです。
+
+メルカリ・ヤフオクで安く仕入れて即転売で利益が出る商品を${count}件リストアップしてください。
+
+【対象商品】
+ポケモンカード・スポーツカード・スニーカー（Nike/New Balance等）・フィギュア・ブランド品・ゲームソフト・レトロゲーム・ヴィンテージ品・時計・カメラ・楽器・アニメグッズ・LEGO・BEARBRICK等、古物商が扱える高回転商品
+
+【条件】
+- 仕入れ上限: ${maxPrice}円以内
+- 利益率30%以上（送料700円・メルカリ手数料10%込み）
+- 実際にメルカリ・ヤフオクで売却実績がある商品のみ
+- 平均30日以内に売れる需要がある商品
+
+【除外】チケット・医薬品・食品・デジタルコンテンツ・偽ブランド品
+
+【仕入れ相場】= メルカリ・ヤフオクで現在出品されている安値帯（実際に購入可能な価格）
+【売却相場】= メルカリ・ヤフオクの売却済み・落札済み実績価格の平均（出品中価格ではない）
+
+【出力】JSON配列のみ。説明文不要。
+
+[{"product":"商品名（型番・モデル含む）","category":"即転売","cost":仕入れ相場整数,"mercariPrice":売却実績相場整数,"profit":推定利益整数,"schedule":"常時仕入れ可能","applyMethod":"仕入れ方法と検索キーワード","difficulty":"低or中or高","reason":"価格差の根拠と実売データ","demand":"高or中","url":"メルカリまたはヤフオクの検索URL"}]
+
+上記フォーマットで${count}件出力してください。`;
+  }
+
+  return `あなたは日本の転売・フリマ市場に精通したリサーチアナリストです。本日は${dateStr}です。
+以下の条件を満たす転売向け商品を${count}件、必ずJSON配列形式でリストアップしてください。
+
+【検索カテゴリ】
 ${phase.focus}
 
-━━ 必須条件（全て満たすこと） ━━
-① 【完全ネット完結】スマホ・PCのみで応募完結。店舗訪問・並び不要。応募→当選→自宅配送の流れが確立されていること
-② 【公式サイト・正規店のみ】ブランド公式サイト・正規販売店の抽選のみ。転売サイト・二次流通は除外
-③ 【応募時期】${dateStr}から${timeRange}の間に応募受付中または開始予定
-④ 【仕入上限】定価${maxPrice}円以内
-⑤ 【実売実績確認】メルカリ・ラクマ・ヤフオクで定価の1.5倍以上で実際に落札・売買されている実績をGoogle検索で確認すること
-⑥ 【個人出品可能な有形物】メルカリで普通に出品できる物。冷蔵不要・資格不要・転売禁止記載なし
+【必須条件】
+1. ネット完結（スマホ・PCのみ）で応募・購入できること。店舗不要
+2. 公式サイト・正規販売店の抽選または販売のみ（二次流通除外）
+3. 応募・購入時期: ${dateStr}前後${timeRange}以内
+4. 仕入れ定価: ${maxPrice}円以下
+5. メルカリ・ヤフオクで定価の1.5倍以上で実際に取引されている商品のみ
+6. 個人でメルカリ出品可能な有形物
 
-━━ 絶対除外（これに該当するものはリストに絶対含めない） ━━
-✗ チケット全般（ライブ・スポーツ・映画・交通・宿泊・入場券）
-✗ 医薬品・健康食品・サプリメント
-✗ デジタルコンテンツ・ゲームコード・NFT・電子書籍
-✗ 大型家電・家具（個人配送が困難なもの）
-✗ 食品・飲料（賞味期限のあるもの）
-✗ 転売禁止と明記された商品
+【除外】チケット・医薬品・デジタルコンテンツ・食品・転売禁止商品
 
-━━ 各商品について必ずGoogleで調査して記載 ━━
-1. 正式商品名・抽選名
-2. 応募ページの直URL（公式サイトの直リンク必須）
-3. 応募方法・サイト名・会員登録要否
-4. 定価（仕入価格）
-5. メルカリ・フリマでの現在の平均相場価格（Google検索で実際の取引価格を確認）
-6. 推定利益（メルカリ相場×0.9 - 定価 - 送料500円）
-7. 応募期間・当選発表日・発送予定日
-8. プレ値になる具体的理由（販売数量・レア度・コラボ背景・ファン層など）
-9. 応募難易度（低:倍率低め/中:普通/高:激戦）
+【メルカリ相場の算出】
+- 売却済み・落札済みの実際の成約価格を基準にすること（出品中価格ではない）
+- 複数件の中央値または平均値を使用
+- 根拠のある具体的な金額を記載（例: 「メルカリ売却済み実績: 8,000〜12,000円、平均10,000円」）
 
-━━ 出力形式 ━━
-JSON配列のみ出力。Markdownコードブロック不使用。'['で始まり']'で終わること。
+【出力】必ずJSON配列のみ。説明文・見出し・Markdownは一切不要。
 
-[
-  {
-    "product": "商品の正式名称",
-    "category": "カテゴリ（TCG/スニーカー/フィギュア等）",
-    "cost": 定価（整数のみ）,
-    "mercariPrice": メルカリ相場価格（整数のみ）,
-    "profit": 推定利益（整数のみ）,
-    "schedule": "YYYY/MM/DD 応募開始〜MM/DD締切",
-    "applyMethod": "応募方法（例: 公式サイト会員登録必要 / Nike SNKRS APPから応募）",
-    "difficulty": "低または中または高",
-    "reason": "プレ値理由を具体的に（販売数・ファン層・コラボ背景等）",
-    "demand": "高または中",
-    "url": "応募ページの直URL（公式サイトのみ）"
-  }
-]`;
+[{"product":"商品名","category":"カテゴリ","cost":定価整数,"mercariPrice":メルカリ実売相場整数,"profit":推定利益整数,"schedule":"応募期間","applyMethod":"応募方法","difficulty":"低or中or高","reason":"プレ値理由と実売根拠","demand":"高or中","url":"公式応募URL"}]
+
+上記フォーマットで${count}件分のJSONを出力してください。`;
 }
 
+// (model, apiVersion) pairs — ordered by availability
+const GEMINI_MODELS = [
+  ['gemini-2.0-flash',           'v1beta'],
+  ['gemini-2.0-flash-exp',       'v1beta'],
+  ['gemini-2.5-flash-preview-04-17', 'v1beta'],
+  ['gemini-1.5-flash-latest',    'v1beta'],
+  ['gemini-1.5-flash-002',       'v1beta'],
+  ['gemini-1.5-pro-latest',      'v1beta'],
+  ['gemini-2.0-flash',           'v1'],
+  ['gemini-1.5-flash',           'v1'],
+  ['gemini-1.5-pro',             'v1'],
+];
+
 async function callGemini(apiKey, prompt){
-  const models = ['gemini-2.5-flash','gemini-2.0-flash','gemini-1.5-pro','gemini-1.5-flash'];
-  const payload = {
-    contents:[{role:'user',parts:[{text:prompt}]}],
-    tools:[{googleSearch:{}}]
-  };
-  for(const model of models){
+  // Prefer dynamically fetched models (from listModels), else use hardcoded fallbacks
+  const tryList = (window._availableModels||[]).length
+    ? window._availableModels.map(m=>[m,'v1beta'])
+    : GEMINI_MODELS;
+  const errors = [];
+  for(const [model, apiVer] of tryList){
     try{
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const res = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      if(res.ok){
-        const data = await res.json();
-        return data.candidates[0].content.parts[0].text;
+      setStatus(`🔄 ${model} に接続中...`);
+      const url = `https://generativelanguage.googleapis.com/${apiVer}/models/${model}:generateContent?key=${apiKey}`;
+      const res = await fetch(url,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          contents:[{role:'user',parts:[{text:prompt}]}],
+          generationConfig:{temperature:0.2, maxOutputTokens:8192}
+        })
+      });
+      const data = await res.json();
+      if(!res.ok){
+        const msg = data?.error?.message || `HTTP ${res.status}`;
+        errors.push(`${model}(${apiVer}): ${msg.slice(0,80)}`);
+        continue;
       }
-    }catch(e){ console.warn('model failed',model,e); }
+      const cand = data.candidates?.[0];
+      if(!cand){ errors.push(`${model}: no candidates`); continue; }
+      if(cand.finishReason === 'SAFETY'){ errors.push(`${model}: SAFETY block`); continue; }
+      const text = (cand.content?.parts||[]).filter(p=>p.text).map(p=>p.text).join('');
+      if(text && text.length > 20){
+        console.log(`✅ ${model}(${apiVer}) 成功 ${text.length}文字`);
+        return text;
+      }
+      errors.push(`${model}: 空レスポンス`);
+    }catch(e){
+      errors.push(`${model}: ${e.message}`);
+    }
   }
-  throw new Error('全モデルでの接続に失敗しました');
+  throw new Error('全モデル失敗:\n' + errors.join('\n'));
+}
+
+function setStatus(msg){
+  const el = document.getElementById('statusText');
+  if(el) el.textContent = msg;
+}
+
+async function listModels(){
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if(!apiKey){ alert('APIキーを入力してください'); return; }
+  const el = document.getElementById('apiTestResult');
+  el.style.color = 'var(--text-d)';
+  el.textContent = '🔄 利用可能モデルを取得中...';
+  try{
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=50`);
+    const data = await res.json();
+    if(!res.ok){
+      el.style.color = 'var(--red)';
+      el.textContent = `❌ ${res.status}: ${data?.error?.message||'不明'}`;
+      return;
+    }
+    const models = (data.models||[])
+      .filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent'))
+      .map(m=>m.name.replace('models/',''));
+    if(!models.length){
+      el.style.color = 'var(--red)';
+      el.textContent = '❌ generateContent対応モデルが見つかりません。APIキーの権限を確認してください。';
+      return;
+    }
+    el.style.color = 'var(--green)';
+    el.innerHTML = `✅ 利用可能モデル (${models.length}件):<br>` +
+      models.map(m=>`<span style="color:var(--gold)">• ${m}</span>`).join('<br>');
+    // Auto-update GEMINI_MODELS with available models
+    window._availableModels = models;
+  }catch(e){
+    el.style.color = 'var(--red)';
+    el.textContent = `❌ 通信エラー: ${e.message}`;
+  }
+}
+
+async function testApiKey(){
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if(!apiKey){ alert('APIキーを入力してください'); return; }
+  const el = document.getElementById('apiTestResult');
+  el.style.color = 'var(--text-d)';
+  el.textContent = '🔄 テスト中... (複数モデルを順番に試します)';
+
+  for(const [model, apiVer] of GEMINI_MODELS){
+    el.textContent = `🔄 ${model} (${apiVer}) を試行中...`;
+    try{
+      const url = `https://generativelanguage.googleapis.com/${apiVer}/models/${model}:generateContent?key=${apiKey}`;
+      const res = await fetch(url,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{role:'user',parts:[{text:'日本語で「接続OK」とだけ答えてください。'}]}]})
+      });
+      const data = await res.json();
+      if(res.ok){
+        const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || '(応答あり)';
+        el.style.color = 'var(--green)';
+        el.textContent = `✅ 接続成功！ モデル: ${model} (${apiVer})　応答: "${txt.trim()}"`;
+        return;
+      } else {
+        const msg = data?.error?.message || `HTTP ${res.status}`;
+        el.style.color = 'var(--text-d)';
+        el.textContent = `⚠️ ${model}: ${msg.slice(0,60)} → 次を試します...`;
+        await new Promise(r=>setTimeout(r,500));
+      }
+    }catch(e){
+      el.style.color = 'var(--text-d)';
+      el.textContent = `⚠️ ${model}: ${e.message} → 次を試します...`;
+      await new Promise(r=>setTimeout(r,500));
+    }
+  }
+  el.style.color = 'var(--red)';
+  el.textContent = '❌ 全モデルで接続失敗。APIキーが正しいか、Google AI StudioでGemini APIが有効か確認してください。';
 }
 
 function parseJSON(text){
-  let t = text.replace(/```json/gi,'').replace(/```/g,'').trim();
-  const s = t.indexOf('['), e = t.lastIndexOf(']');
-  if(s!==-1&&e!==-1) t = t.substring(s,e+1);
-  return JSON.parse(t);
+  // Remove markdown fences
+  let t = text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+  // Extract the outermost JSON array
+  const s = t.indexOf('[');
+  const e = t.lastIndexOf(']');
+  if(s !== -1 && e !== -1 && e > s){
+    t = t.substring(s, e+1);
+    // Fix common AI JSON mistakes
+    t = t
+      .replace(/,\s*]/g, ']')
+      .replace(/,\s*}/g, '}')
+      .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":')   // unquoted keys
+      .replace(/:\s*'([^']*)'/g, ': "$1"');          // single-quoted values
+    try{ return JSON.parse(t); }catch(_){}
+    // Last resort: extract individual objects
+    const items = [];
+    const re = /\{[\s\S]*?\}/g;
+    let m;
+    while((m = re.exec(t)) !== null){
+      try{ items.push(JSON.parse(m[0])); }catch(_){}
+    }
+    if(items.length) return items;
+  }
+  throw new Error('JSONの解析に失敗しました。AIの返答: '+text.slice(0,200));
+}
+
+async function autoFetchModels(apiKey){
+  try{
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=50`);
+    if(!res.ok) return false;
+    const data = await res.json();
+    const models = (data.models||[])
+      .filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent'))
+      .map(m=>m.name.replace('models/',''));
+    if(models.length){
+      window._availableModels = models;
+      console.log('✅ 利用可能モデル:', models);
+      return true;
+    }
+  }catch(e){ console.warn('listModels failed:', e.message); }
+  return false;
 }
 
 async function runSearch(){
@@ -572,6 +739,17 @@ async function runSearch(){
   document.getElementById('searchBtn').disabled = true;
   document.getElementById('progressPanel').style.display = 'block';
   document.getElementById('resultsPanel').style.display = 'none';
+  document.getElementById('debugPanel').style.display = 'none';
+
+  // Auto-fetch available models before search
+  setStatus('🔍 利用可能なモデルを確認中...');
+  const fetched = await autoFetchModels(apiKey);
+  if(fetched){
+    setStatus(`✅ モデル確認完了 (${(window._availableModels||[]).length}件利用可能)`);
+  } else {
+    setStatus('⚠️ モデル一覧取得失敗 — フォールバックリストを使用');
+  }
+  await new Promise(r=>setTimeout(r,800));
 
   // Build phase chips
   const chips = document.getElementById('phaseChips');
@@ -590,19 +768,50 @@ async function runSearch(){
     const prompt = buildPrompt(phase, selectedCats.map(c=>c.id), perCount, timeRange, maxPrice);
 
     try{
+      document.getElementById('statusText').textContent = `${phase.label} — AIが検索中... (${i+1}/${phasesToRun.length})`;
+      document.getElementById('debugPanel').style.display = 'block';
+      document.getElementById('debugRaw').value = '通信中...';
+      document.getElementById('debugStatus').textContent = '';
+
       const text = await callGemini(apiKey, prompt);
-      const items = parseJSON(text);
-      if(Array.isArray(items)){
-        // Recalculate profit in JS for consistency
+
+      // Show raw response for debugging
+      document.getElementById('debugRaw').value = text;
+      document.getElementById('statusText').textContent = `${phase.label} — JSON解析中...`;
+
+      let items;
+      try{
+        items = parseJSON(text);
+      }catch(parseErr){
+        document.getElementById('debugStatus').textContent = `⚠️ JSON解析失敗: ${parseErr.message} — 上のテキストをコピーして報告してください`;
+        document.getElementById('statusText').textContent = `⚠️ ${phase.label} — JSON解析失敗`;
+        await new Promise(r=>setTimeout(r,2000));
+        continue;
+      }
+
+      if(Array.isArray(items) && items.length){
         items.forEach(item=>{
-          item.cost = parseNum(item.cost);
-          item.mercariPrice = parseNum(item.mercariPrice);
-          item.profit = calcProfit(item.mercariPrice, item.cost);
+          item.cost        = parseNum(item.cost);
+          item.mercariPrice= parseNum(item.mercariPrice);
+          item.profit      = calcProfit(item.mercariPrice, item.cost);
         });
-        allResults = allResults.concat(items);
+        // Relaxed filter: only require product name (cost/price can be 0 if AI didn't provide)
+        const valid = items.filter(it => it.product && String(it.product).trim());
+        allResults = allResults.concat(valid);
+        document.getElementById('debugStatus').textContent = `✅ ${items.length}件取得、${valid.length}件有効`;
+        document.getElementById('statusText').textContent = `${phase.label} — ${valid.length}件取得 ✅`;
+      } else {
+        document.getElementById('debugStatus').textContent = '⚠️ 配列が空または非配列';
+        document.getElementById('statusText').textContent = `${phase.label} — データなし`;
       }
     }catch(e){
       console.warn(`Phase ${i} error:`, e);
+      const errMsg = e.message || String(e);
+      document.getElementById('debugRaw').value = errMsg;
+      document.getElementById('debugStatus').textContent = 'API呼び出し失敗';
+      document.getElementById('statusText').innerHTML =
+        `<span style="color:var(--red)">❌ ${esc(phase.label)}: ${esc(errMsg.slice(0,120))}</span>`;
+      await new Promise(r=>setTimeout(r,3000));
     }
 
     document.getElementById(`chip-${i}`).classList.remove('active');
@@ -610,6 +819,11 @@ async function runSearch(){
   }
 
   setProgress(100);
+  if(!allResults.length){
+    document.getElementById('statusText').textContent = '⚠️ 結果が0件です。APIキーとGeminiのGoogle検索グラウンディング権限を確認してください。';
+    document.getElementById('searchBtn').disabled = false;
+    return;
+  }
   document.getElementById('statusText').textContent = `完了！ ${allResults.length}件取得 → 重複除去・ソート中...`;
 
   // Deduplicate
